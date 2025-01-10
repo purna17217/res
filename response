@@ -1,0 +1,58 @@
+package com.bancs.microservices.java.response;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.*;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import org.springframework.stereotype.Component;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+
+@Component
+public class Response {
+
+    Logger logger = LoggerFactory.getLogger(Response.class);
+    FormatResponse frobj = new FormatResponse();
+    SplitandStoreResponse ssobj = new SplitandStoreResponse();
+
+    @CrossOrigin()  
+    @JsonIgnore
+    public String getResponse(String RES_FILE_PATH, String linkoutRes, String refno, String requestedNoOfRecords) {
+
+        logger.info("Fetching Response...");
+        Map<String, String> paramLengthMap = new LinkedHashMap<>();
+        String respStatus = "0";
+        String errno = "0000";
+        String errdesc = "OK SUCCESS";
+        String json = "";
+        try {
+            Files.lines(Paths.get(RES_FILE_PATH)).forEach(line -> {
+                String[] lineSplit = line.split(":");
+                paramLengthMap.put(lineSplit[0], lineSplit[1]);
+            });
+        } catch (IOException e) {
+            logger.error("Error occurred while fetching the response outline");
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("REQUEST_REFERENCE_NUMBER", refno);
+        result.put("RESPONSE_STATUS", respStatus);
+        result.put("ERROR_CODE", errno);
+        result.put("ERROR_DESCRIPTION", errdesc);
+
+        // Pass the noOfRecords to the splitAndStoreResponse method
+        Map<String, Object> cobResponse = ssobj.splitAndStoreResponse(linkoutRes, paramLengthMap, requestedNoOfRecords);
+        result.putAll(cobResponse);
+        json = frobj.convertMapToJson(result);
+        logger.info("Fetched Response");
+
+        return json;
+    }
+    
+}
