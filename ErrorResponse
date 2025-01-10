@@ -1,0 +1,30 @@
+
+package com.bancs.microservices.java.response;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class ErrorResponse {
+	
+	FormatResponse frobj = new FormatResponse();
+	Logger logger	= LoggerFactory.getLogger(FormatResponse.class);
+	
+	public String getErrorResponse(String errno, String errdesc, String refno) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        String jsonResponse = "";
+        String respStatus = "1";
+        logger.info("Fetching Error Response...");
+        result.put("REQUEST_REFERENCE_NUMBER", refno);
+        result.put("RESPONSE_STATUS", respStatus);
+        result.put("ERROR_CODE", errno);
+        result.put("ERROR_DESCRIPTION", errdesc.trim());
+        
+        jsonResponse = frobj.convertMapToJson(result);
+        
+        logger.info("Fetched Error Response");
+        return jsonResponse;
+    }
+}
