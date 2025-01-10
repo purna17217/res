@@ -1,0 +1,35 @@
+
+package com.bancs.microservices.java.response;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class ProcessSubStructure {
+	
+	InsertRecord	irobj	= new InsertRecord();
+	
+    public void processSubStructure(String subStr, Map<String, Object> map, String prefix, Map<String, String> paramLengthMap) {
+        Map<String, Integer> subParamLengthMap = new LinkedHashMap<>();
+        int curIndex = 0;
+
+        for (Map.Entry<String, String> entry : paramLengthMap.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith(prefix + ".")) {
+                String subKey = key.substring((prefix + ".").length());
+                subParamLengthMap.put(subKey, Integer.parseInt(entry.getValue()));
+            }
+        }
+
+        for (Map.Entry<String, Integer> entry : subParamLengthMap.entrySet()) {
+            String key = entry.getKey();
+            int length = entry.getValue();
+
+            if (curIndex + length <= subStr.length()) {
+            	irobj.insertValue(map, key, subStr.substring(curIndex, curIndex + length).trim());
+                curIndex += length;
+            } else {
+                break; // In case remaining length is less than expected
+            }
+        }
+    }
+}
