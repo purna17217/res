@@ -1,6 +1,8 @@
 String sourceAuth = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
 	Properties sId = PropertyLoader.readPropertyFile(new String(sourceAuth + "/SourceIdList.properties"));
-
+String sourceFlag = sId.getProperty("SourceFlag", "");
+	public Set<String> validSrc = new HashSet<>(Arrays.asList(sourceFlag.split(",")));
+	
 	public List<String> validateRefNum(String refnum) {
 		List<String> resList = new ArrayList<>();
 		if(refnum == null) {
@@ -18,15 +20,21 @@ String sourceAuth = CacheConfig.frameworkConfigProperties.getProperty(FrameworkC
 		} else {
 			String sbi = refnum.substring(0, 3);
 			String srcId = refnum.substring(3,5);
-			String VerifyID = sId.getproperty();
 			String s = refnum.substring(0, 5);
 			String num = refnum.substring(5, refnum.length());
 			if (refnum.matches("^(?![0-9]*$)[a-zA-Z0-9]+$") && sbi.equalsIgnoreCase("SBI") && StringUtils.isAlpha(s)
 					&& StringUtils.isAlphanumeric(num)) {
+				if(!validSrc.contains(srcId))
+				{
+			    logger.info("VC------------------------Invalid Source ID------------------------VC");
+				}
+				else
+				{
 				res = "00000";
 				resList.add(refnum);
 				resList.add(res);
 				logger.info("VC------------------------Received Reference number is valid------------------------VC");
+				}
 			} else {
 				res = "1610";
 				resList.add(refnum);
