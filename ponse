@@ -1,0 +1,39 @@
+String sourceAuth = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	Properties sId = PropertyLoader.readPropertyFile(new String(sourceAuth + "/SourceIdList.properties"));
+
+	public List<String> validateRefNum(String refnum) {
+		List<String> resList = new ArrayList<>();
+		if(refnum == null) {
+			res = "1610";
+			resList.add("");
+			resList.add(res);
+			logger.error("Received Reference number is null");
+		}
+		else if (refnum.length() != 25 || refnum.contains(" ")
+				|| refnum.isEmpty()) {;
+			res = "1610";
+			resList.add(refnum);
+			resList.add(res);
+			logger.error("Received Reference number is of invalid length");
+		} else {
+			String sbi = refnum.substring(0, 3);
+			String srcId = refnum.substring(3,5);
+			String VerifyID = sId.getproperty();
+			String s = refnum.substring(0, 5);
+			String num = refnum.substring(5, refnum.length());
+			if (refnum.matches("^(?![0-9]*$)[a-zA-Z0-9]+$") && sbi.equalsIgnoreCase("SBI") && StringUtils.isAlpha(s)
+					&& StringUtils.isAlphanumeric(num)) {
+				res = "00000";
+				resList.add(refnum);
+				resList.add(res);
+				logger.info("VC------------------------Received Reference number is valid------------------------VC");
+			} else {
+				res = "1610";
+				resList.add(refnum);
+				resList.add(res);
+				logger.error("Received Reference number is of invalid format");
+			}
+		}
+
+		return resList;
+	}
