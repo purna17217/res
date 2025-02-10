@@ -92,3 +92,15 @@ public class ReferenceNumberValidator {
         return resList;
     }
 }
+String sourceFlag = sId.getProperty("SourceFlag", "").trim();
+String[] validSrcArray = sourceFlag.isEmpty() ? new String[0] : sourceFlag.split(",");
+
+// Trimming spaces from each value (if needed)
+for (int i = 0; i < validSrcArray.length; i++) {
+    validSrcArray[i] = validSrcArray[i].trim();
+}
+if (!Arrays.asList(validSrcArray).contains(srcId)) {
+    logger.error("VC------------------------Invalid Source ID '{}'------------------------VC", srcId);
+} else {
+    logger.info("VC------------------------Received Reference number is valid------------------------VC");
+}
