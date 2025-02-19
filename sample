@@ -40,4 +40,51 @@ public class DecryptionResponse
     }
   }
 }
+⭐
+package com.tcs.bancs.microservices.service;
 
+import com.tcs.bancs.microservices.enc.utils.SBISFTP;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.util.Scanner;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+public class DecryptionResponse {
+    public static void main(String[] args) {
+        try (Scanner sc = new Scanner(System.in)) {
+            // Take AES Key from user
+            System.out.print("Enter AES Key: ");
+            String accessToken = sc.nextLine();
+
+            // Take Encrypted Response File Path
+            System.out.print("\nEnter Encrypted Response file path: ");
+            String encResponsePath = sc.nextLine();
+
+            // Read file content into StringBuilder
+            StringBuilder encResponse = new StringBuilder();
+            try {
+                Files.lines(Paths.get(encResponsePath)).forEach(encResponse::append);
+            } catch (IOException e) {
+                System.err.println("Error occurred while fetching the encrypted response file.");
+                e.printStackTrace();
+                return;
+            }
+
+            // Decrypt the response
+            try {
+                String decResponse = SBISFTP.decryptResponse(accessToken, encResponse.toString());
+                System.out.println("Decrypted Response:\n" + decResponse);
+            } catch (java.security.NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException |
+                     InvalidAlgorithmParameterException | IllegalStateException | IllegalBlockSizeException |
+                     BadPaddingException | IOException e) {
+                System.err.println("Error occurred while decrypting the response.");
+                e.printStackTrace();
+            }
+        }
+    }
+}
