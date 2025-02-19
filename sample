@@ -1,0 +1,43 @@
+package com.tcs.bancs.microservices.service;
+import com.tcs.bancs.microservices.enc.utils.SBISFTP;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.util.Scanner;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+public class DecryptionResponse
+{
+  static String encResponse = new String();
+  public static void main(String[] args)
+  {
+    Scanner sc = new Scanner(System.in);
+    System.out.print("Enter AES Key=");
+    String accessToken = sc.nextLine();
+    System.out.print("\nEnter Encrypted Response file path=\n");
+    String encResponsepath = sc.nextLine();
+    
+    try {
+        Files.lines(Paths.get(encResponsepath)).forEach(line -> {
+            encResponse += line;            
+        });
+    } catch (IOException e) {
+        System.out.println("Error occurred while fetching the encrypted response file");
+    }
+        
+    try
+    {
+      String decResponse = SBISFTP.decryptResponse(accessToken, encResponse);
+      System.out.println("Decrypted Response>>\n" + decResponse);
+    }
+    catch (java.security.NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalStateException | IllegalBlockSizeException | BadPaddingException | IOException e)
+    {
+      e.printStackTrace();
+    }
+  }
+}
+
