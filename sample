@@ -206,3 +206,80 @@ if (StringUtils.isAlpha(opcode)) {
 				}
 			}
 			  run1.close();
+
+
+
+
+import com.microfocus.cobol.runtime.RunUnit;
+import java.sql.Connection;
+import java.sql.SQLException;
+
+public class RunUnitMonitor {
+    public static void main(String[] args) {
+        RunUnit run1 = new RunUnit();
+        System.out.println("RunUnit Created: " + run1);  // Print RunUnit reference
+
+        Runtime runtime = Runtime.getRuntime();
+        long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Memory Before RunUnit Execution: " + memoryBefore + " bytes");
+
+        try (Connection connection = datasource.getConnection()) {
+            System.out.println("Database connection established.");
+
+            // Add the COBOL program to the RunUnit
+            run1.Add(jvm60457);
+            System.out.println("COBOL program added to RunUnit.");
+
+            // Call the COBOL program
+            run1.Call("JVM60457", 
+                      cif_number.get_Reference(), 
+                      opt_flag.get_Reference(), 
+                      branch_num.get_Reference(), 
+                      teller_num.get_Reference(), 
+                      out_cif_details.get_Reference(), 
+                      out_account_array.get_Reference(),  
+                      out_error_num.get_Reference(), 
+                      Rec_Area.get_Reference(), 
+                      connection);
+            System.out.println("COBOL program executed.");
+
+            errno = out_error_num.getJvmOutErrorNo();
+        } catch (SQLException e) {
+            errno = "3293";
+            System.out.println("SQL Exception occurred: " + e.getMessage());
+        }
+
+        // Processing output details
+        cif_details = out_cif_details.getJvmOutCifDetails();
+        index = 0;
+        while (index <= 9999) {
+            String account_details = out_account_array.getJvmOutput60457Output(index);
+            if (!account_details.trim().isEmpty()) {
+                Output_Acc = Output_Acc + account_details;
+                index += 1;
+            } else {
+                break;
+            }
+        }
+
+        // Closing RunUnit
+        run1.close();
+        System.out.println("RunUnit closed successfully.");
+
+        // Suggest garbage collection
+        run1 = null;
+        System.gc();
+        System.runFinalization();
+
+        // Check memory after RunUnit execution
+        long memoryAfter = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Memory After RunUnit Execution: " + memoryAfter + " bytes");
+
+        if (memoryAfter > memoryBefore) {
+            System.out.println("⚠️ Possible Memory Leak Detected!");
+        } else {
+            System.out.println("✅ Memory Released Successfully.");
+        }
+    }
+}
+
