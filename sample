@@ -158,5 +158,21 @@ public class OpenBankingServicesApp extends SpringBootServletInitializer {
 }
 
 
+public class Main {
+    public static void main(String[] args) {
+        String decResponse = "123,456,789{abc,def},[1,000,2,000],xyz";
+        
+        // Split the string while preserving commas between numbers
+        // Use negative lookahead (?![0-9]) and negative lookbehind (?<![0-9]) to avoid splitting on commas between digits
+        String[] parts = decResponse.split(",(?![0-9])|(?<![0-9]),|[\\{\\}\\[\\]]+");
+        
+        // Print the result
+        for (String part : parts) {
+            System.out.println(part);
+        }
+    }
+}
+
+
 if (StringUtils.isAlpha(opcode)) {
 				if (opcode.equals("F") || opcode.equals("M") || opcode.equals("P") || opcode.equals("E")) {
