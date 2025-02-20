@@ -156,3 +156,7 @@ public class OpenBankingServicesApp extends SpringBootServletInitializer {
 	}
 
 }
+
+
+if (StringUtils.isAlpha(opcode)) {
+				if (opcode.equals("F") || opcode.equals("M") || opcode.equals("P") || opcode.equals("E")) {
