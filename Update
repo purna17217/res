@@ -108,3 +108,488 @@ public class YONO_Child {
         return res;
     }
 }
+
+
+
+
+
+
+
+
+package com.tcs.bancs.microservices.services;
+
+import java.io.IOException;
+import java.lang.ref.PhantomReference;
+import java.lang.ref.ReferenceQueue;
+import java.math.BigInteger;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
+import javax.sql.rowset.serial.SerialException;
+import javax.validation.Valid;
+
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.WebDataBinder;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.google.gson.Gson;
+import com.microfocus.cobol.runtimeservices.RunUnit;
+import com.tcs.bancs.microservices.aggregator.AggregationServiceImpl;
+import com.tcs.bancs.microservices.config.CacheConfig;
+import com.tcs.bancs.microservices.configuration.PropertyLoader;
+import com.tcs.bancs.microservices.exception.RrnException;
+import com.tcs.bancs.microservices.exception.SrcException;
+import com.tcs.bancs.microservices.impl.MigenqDetailsRepositoryImpl;
+import com.tcs.bancs.microservices.util.FrameworkConstants;
+import com.tcs.bancs.microservices.java.txtm.Error_Description;
+import com.tcs.bancs.microservices.reqbean.RequestBean_YONO;
+import com.tcs.bancs.microservices.java.response.*;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+
+@RestController
+@Api(value = "Aggregation_API", description = " ", tags = { "Aggregation API" })
+@RequestMapping("/")
+@Cacheable
+@CacheEvict
+public class YONO_Enquiry_Service {
+
+//////////////////////////////////////////////////////////////////////////--------ENV VARIABLES STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	@Autowired
+	AggregationServiceImpl aggregationServiceImpl;
+
+	@Autowired
+	MigenqDetailsRepositoryImpl migDetails;;
+
+	@Value("${UTENVCALS-BANCS-TRACE-STATE}")
+	private String bancsTraceState;
+
+	@Value("${UTENVCALS-MASTER-DQPTYPE}")
+	private String masterDQType;
+
+	@Value("${UTENVCALS-BANCS-HOST}")
+	private String bancsHost;
+
+	@Value("${UTENVCALS-FNS-SYSNUM}")
+	private String fnsSysnum;
+
+	@Value("${UTENVCALS-CTRL-SYSNUM}")
+	private String ctrlSysnum;
+
+	@Value("${UTENVCALS-DAY-SYSNUM}")
+	private String daySysnum;
+
+	@Value("${UTENVCALS-NIGHT-SYSNUM}")
+	private String nightSysnum;
+
+	@Value("${UTENVCALS-NON24H-SYSNUM}")
+	private String non24hsum;
+
+	@Value("${UTENVCALS-DEF-RMODE}")
+	private String defRMode;
+
+	@Value("${UTENVCALS-MASTER-DB-1}")
+	private String masterDB1;
+
+	@Value("${UTENVCALS-MASTER-DB-2}")
+	private String masterDB2;
+
+	@Value("${UTENVCALS-SERVICES-FLAG}")
+	private String servicesFlag;
+
+	@Value("${VC-MS-SERVICE-ID}")
+	private String serviceid;
+	
+	@Value("${cif.response.outline.location}")
+	private String CIF_RES_FILE_PATH;
+	
+	@Value("${acc.response.outline.location}")
+	private String ACC_RES_FILE_PATH;
+	
+	@Value("${UTENVCALS-INSPARAM-FLAG}")
+	private String INSPARAM_FLAG;
+	
+	@Value("${UTENVCALS-INSPARAM-VALUE}")
+	private String INSPARAM_VALUE;
+	
+    @Value("${UTENVCALS-DEF-RMODE}")
+    private String dbmode;
+	
+    @Autowired
+    @Qualifier("dayDataSource")
+    private DataSource dayDataSource;
+	
+//////////////////////////////////////////////////////////////////////////--------ENV VARIABLES ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+	Logger logger = LoggerFactory.getLogger(YONO_Enquiry_Service.class);
+	
+//////////////////////////////////////////////////////////////////////////--------PATH FILES READING STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	String ErrorCodeMasterFilePath = CacheConfig.frameworkConfigProperties
+			.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	String sourceAuth = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	String ipConfig = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	Properties error = PropertyLoader
+			.readPropertyFile(new String(ErrorCodeMasterFilePath + "/ErrorCodeMaster.properties"));
+	Properties sId = PropertyLoader.readPropertyFile(new String(sourceAuth + "/SourceIdList.properties"));
+	Properties ipprop = PropertyLoader.readPropertyFile(new String(ipConfig + "/IpConfigMaster.properties"));
+	
+//////////////////////////////////////////////////////////////////////////--------PATH FILES READING ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+	private final Response responseObj;
+
+	@Autowired
+	public YONO_Enquiry_Service(Response responseObj) {
+		this.responseObj = responseObj;
+	}
+	
+	@InitBinder
+	public void initBinder(WebDataBinder binder) {
+		binder.setDisallowedFields(new String[] {});
+	}
+	
+	
+//////////////////////////////////////////////////////////////////////////--------SPACE CLEANING METHOD READING DELCARATION--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\	
+	
+	private static ReferenceQueue<RunUnit> refQueue = new ReferenceQueue<>();
+
+    static class RunUnitCleaner extends PhantomReference<RunUnit> {
+        public RunUnitCleaner(RunUnit run1) {
+            super(run1, refQueue);
+        }
+
+        public void cleanUp() {
+            System.out.println("RunUnit is no longer referenced. Cleaning up...");
+        }
+    }
+
+    
+//////////////////////////////////////////////////////////////////////////-------- OBJECTS CREATION STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	
+	ErrorResponse 			        errobj 		 = new ErrorResponse();
+	Error_Description 		        errdesc 	 = new Error_Description();
+	YONO_Validate_Teller_Branch 	validate     = new YONO_Validate_Teller_Branch();
+	YONO_Child                      yonochild    = new YONO_Child();
+	InputValidations_YONO           inpval 		 = new InputValidations_YONO();
+	Gson gson = new Gson();
+//////////////////////////////////////////////////////////////////////////-------- OBJECTS CREATION ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+
+	@SuppressWarnings({ "unchecked", "rawtypes"})
+	@ApiOperation(value = "Call YONO", notes = "YONOEnq Service:This API is used to fetch Customer Details.")
+	@PostMapping(value = { "/YONOEnq" }, produces = { "application/json" })
+	@CrossOrigin()
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	@Validated
+	public ResponseEntity<Object> getCustomerDetails(@RequestBody(required = false) @Valid RequestBean_YONO reqbean,
+			HttpServletRequest request, @RequestHeader HttpHeaders headers, HttpServletResponse response)
+			throws SerialException, SQLException, IOException, RrnException, SrcException, InterruptedException, ExecutionException {
+
+		response.setHeader("X-Content-Type-Options", "nosniff");
+		response.setHeader("X-Frame-Options", "DENY");
+		response.setHeader("Content-Security-Policy", "default-src 'self'");
+		response.setHeader("X-XSS-Protection", "1;mode=block");
+		
+//////////////////////////////////////////////////////////////////////////-------- INITIAL VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		
+		String IPAddress = request.getHeader("X-Forwarded-For");
+		String remoteAddress = request.getRemoteAddr();
+		String accept = request.getHeader("Content-Type");
+		DateTimeFormatter entryDate1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss:SSS");
+		LocalDateTime time = LocalDateTime.now();
+		String entryDate = entryDate1.format(time);
+		
+//////////////////////////////////////////////////////////////////////////-------- SERVICE VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		String reqbeanstr = new String();
+		String finalResponse = new String();
+		String CIFRES_FILE_PATH = new String();
+		String ACCRES_FILE_PATH = new String();
+		String refno = new String();
+		String tellerno = new String();
+		String branchno = new String();
+		String noOfRecords = new String();
+		String cif_or_acct = new String();
+		String option_flag = new String();
+		String cifoutRes= new String();
+		String accoutRes= new String();
+		String errno = new String();
+		String errDesc = new String();
+		String serviceno = serviceid;
+		String sourceId  = new String();
+		String validChkdFlag = new String();
+		List<String> chkdRes = new ArrayList<>();
+		String chkderr = new String();
+		List<String> errList = new ArrayList<>();
+		String allowTellerBranchFlag = new String();
+//START OF CR 25010156
+//		DataSource dataSource = getDataSource("day");
+		DataSource dataSource = getDataSource(dbmode);
+//END OF CR 25010156
+
+//////////////////////////////////////////////////////////////////////////-------- ENV VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		
+		String callcode = "S";
+		String opt = "";
+		List<String> res = new ArrayList<String>();
+		String formattedmasterDB1 = StringUtils.rightPad(masterDB1, 15);
+		String formattedmasterDB2 = StringUtils.rightPad(masterDB2, 15);
+		String lsRecArea = bancsTraceState.trim() + masterDQType.trim() + bancsHost.trim() + fnsSysnum.trim()
+				+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + defRMode.trim()
+				+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+		String[] arr = { bancsTraceState, masterDQType, bancsHost, fnsSysnum, ctrlSysnum, daySysnum, nightSysnum,
+				non24hsum, defRMode, masterDB1, masterDB2, servicesFlag, serviceid,CIF_RES_FILE_PATH,ACC_RES_FILE_PATH,ErrorCodeMasterFilePath, sourceAuth, ipConfig, INSPARAM_FLAG, INSPARAM_VALUE};
+		
+//////////////////////////////////////////////////////////////////////////-------- INPUT VALIDATIONS--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+	    if(reqbean != null) {
+	    	if(!reqbean.isEmpty()){
+	    		
+	    		reqbeanstr = gson.toJson(reqbean).toString();
+	    		
+	    		tellerno   = reqbean.getTellerId();
+	    		branchno   = reqbean.getBranchCode();
+	    	    refno	   =  reqbean.getReferenceNumber();		    	    
+		    
+		    CIFRES_FILE_PATH = CIF_RES_FILE_PATH;
+			ACCRES_FILE_PATH = ACC_RES_FILE_PATH;
+
+		    errList = inpval.validateRefNum(refno);
+		    errno = errList.get(1);
+		    refno = errList.get(0);
+		    if(!errno.equals("00000")) {			
+				errDesc = error.getProperty(errno);				
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveInitialRequest(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			errList = inpval.validateTellerNum(tellerno);
+		    errno = errList.get(1);
+		    tellerno = errList.get(0);
+			if (!errno.equals("00000"))
+			{
+				errDesc = error.getProperty(errno);	
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveInitialRequest(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			
+			errList = inpval.validateBranchNum(branchno);
+		    errno = errList.get(1);
+		    branchno = errList.get(0);
+			if (!errno.equals("00000")) 
+			{
+
+				errDesc = error.getProperty(errno);				
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveInitialRequest(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			cif_or_acct = reqbean.getcif_or_acct_number();
+			chkdRes = inpval.validateCifOrAcctNumber(cif_or_acct);
+			errno = chkdRes.get(1);
+			if (!errno.equals("00000")) 
+			{
+
+				if (errno.equals("CB481")) 
+				{
+					errDesc = error.getProperty(errno);				
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveInitialRequest(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);						
+				} else {
+					chkderr = errno;
+					validChkdFlag = "N";
+				}
+			} else {
+			   cif_or_acct = chkdRes.get(0);
+				validChkdFlag = "Y";
+			}
+			
+			option_flag = reqbean.getoptionflag();
+			errList = inpval.Validate_Option_Flag(option_flag);
+		    errno = errList.get(1);
+		    option_flag = errList.get(0);
+			if (!errno.equals("00000")) 
+			{
+				errDesc = error.getProperty(errno);			
+		    		finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveInitialRequest(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);					
+			}
+			
+			migDetails.saveInitialRequest(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "", Base64.getEncoder().encodeToString(("").getBytes()), "" );
+			
+			logger.info("VC------------------------Initiating DB Pooling------------------------VC");
+
+			if (accept != null && accept.contains("application/json")) {
+				if (validChkdFlag.equals("Y")) {
+					try (Connection connection = dataSource.getConnection()) {
+						logger.info(
+								"VC------------------------Intiating Teller&Branch Validation------------------------VC");
+						List<String> TellerBranchRes = validate.validateTellerBranchService(tellerno, branchno, serviceno, lsRecArea, connection);						
+						allowTellerBranchFlag = TellerBranchRes.get(0);
+						errno = TellerBranchRes.get(1);						
+				}catch (SQLException se) {
+				
+					    errno = "3293";
+					    errDesc= error.getProperty(errno);
+							finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+							migDetails.updateResponse("1", errno, errDesc,
+									Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+							return new ResponseEntity(finalResponse, HttpStatus.OK);
+					}
+					if (allowTellerBranchFlag.equals("Y")) {
+						    logger.info(
+						            "VC------------------------Teller&Branch Validated Sucessfully------------------------VC");  
+							       
+						    	res = yonochild.callYONOEnquiryChild(branchno, tellerno, cif_or_acct, option_flag, dataSource, lsRecArea);
+						    	cifoutRes = res.get(0);									
+								accoutRes = res.get(1);
+								noOfRecords = res.get(2);
+								logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC" + noOfRecords);
+								errno = res.get(3);
+								logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC" + errno);							
+						     
+						}
+						else {
+							try(Connection connection = dataSource.getConnection()) {							 
+							errDesc = errdesc.getCbsErrDesc(errno, callcode, opt, lsRecArea, connection);
+							} catch(SQLException e) {
+
+								errno = "3293";
+
+							    errDesc= error.getProperty(errno);
+									finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+									migDetails.updateResponse("1", errno, errDesc,
+											Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+									return new ResponseEntity(finalResponse, HttpStatus.OK);
+					         }
+							finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+							migDetails.updateResponse("1", errno, errDesc,
+											Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+							return new ResponseEntity(finalResponse, HttpStatus.OK);
+						}
+					
+					}
+					else {
+						try(Connection connection = dataSource.getConnection()) {	
+						errDesc = errdesc.getCbsErrDesc(chkderr, callcode, opt, lsRecArea, connection);
+						} catch(SQLException e) {
+					errno = "3293";
+
+						    errDesc= error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+								migDetails.updateResponse("1", errno, errDesc,
+										Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+								return new ResponseEntity(finalResponse, HttpStatus.OK);
+				         }
+						finalResponse = errobj.getErrorResponse(chkderr, errDesc, refno);
+						migDetails.updateResponse("1", chkderr, errDesc,
+										Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+						return new ResponseEntity(finalResponse, HttpStatus.OK);
+					}				
+			}
+			else {
+
+				errno = "0435";
+
+			    errDesc= error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.updateResponse("1", errno, errDesc, Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+				return new ResponseEntity(finalResponse, HttpStatus.OK);		
+			}
+		}
+			else {
+				errno = "CB422";
+
+			    errDesc= error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveInitialRequest(Base64.getEncoder().encodeToString(("".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}  
+	    }
+
+	    else {
+
+	    	errno = "CB422";
+
+		    errDesc= error.getProperty(errno);
+	    }
+	    
+	    //Response from service
+	    if (errno.equals("0000")) {
+			errno = "";
+			finalResponse = responseObj.getResponse(CIFRES_FILE_PATH, ACCRES_FILE_PATH, cifoutRes, accoutRes, refno, noOfRecords);
+			migDetails.updateResponse("0", errno, "",
+					Base64.getEncoder().encodeToString((finalResponse).getBytes()), "success", entryDate, refno);
+
+		} else if(errno.equals("3293")) {
+			errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.updateResponse("1", errno, errDesc,
+						Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+				return new ResponseEntity(finalResponse, HttpStatus.OK);				
+		}
+	    else {
+			try(Connection connection = dataSource.getConnection()) {
+			errDesc = errdesc.getCbsErrDesc(errno, callcode, opt, lsRecArea, connection);
+			} catch(SQLException e) {
+		
+				errno = "3293";
+				
+				errDesc = error.getProperty(errno);			
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.updateResponse("1", errno, errDesc,
+							Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+			finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+			migDetails.updateResponse("1", errno, errDesc,
+					Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure", entryDate, refno);
+		}
+		return new ResponseEntity(finalResponse, HttpStatus.OK);
+
+	}
+    private DataSource getDataSource(String dbType) {
+        switch (dbType) {
+            case "D":
+
+                return dayDataSource;
+            default:
+                throw new IllegalArgumentException("Unsupported database type: " + dbType);
+        }
+    }
+}
