@@ -1,3 +1,94 @@
+Checklist for coding
+Ingress URL of a service-
+-	Use lower case
+-	Use hyphen(-) if necessary
+-	Don’t use camel case, all upper case, only numerical
+Jar Naming convention –
+-	Use Lower case
+-	Don’t use camel case, all upper case, only numerical, special characters.
+Name of the ingress and jar must be same.
+The main service class must contain only framework related code and call to child classes.
+Create child classes for calling JVM COBOL classes.
+Maintain packages for each category.
+Declare objects in global scope – for java classes
+Declare objects in local scope – for JVM COBOL classes
+Don’t declare of variables in global scope
+Don’t use ‘==’ operator for string comparisons
+Initialization of string variables
+Input validations must have check for null, empty, spaces, length, and mandatory/non - mandatory.
+Don’t manipulate the value received from web layer
+If manipulation is needed do it after initial validations or at the time of function call.
+Create the request bean class based on SD.
+All the request parameters must be added in the isEmpty() method of Request Bean Class
+When using a parameter from properties file –
+-	make sure to have an entry for the field in properties file
+-	Same naming convention must be used in code as well as in file.
+Addition of newly introduced parameters of properties file in code –
+-	Add the variable to array which is used for initial validations
+-	Append the values to variable which is used to set environment
+CBS error number should be 4 digits, add zeros at begin wherever applicable
+The naming convention of the fields must be updated in Response and error response class as per SD
+The data given in response and data in LOG DB must match
+Update the value of TXN_NAME, TXN_NO fields of LOG DB table according to the service in the related code
+All the commits to LOG DB after initial save must use update method.
+Close the resources which are opened
+Use try catch around getConnection() method
+Use logger statements efficiently
+Don’t print any user information inside logger.
+Run unit - 
+-	The data type of the connection string in JVM COBOL must be SQL data type
+-	It must be the last variable in linkage section
+-	Pass using BY VALUE
+-	getReference() will be show warning in the editor, ignore it
+
+Checklist for creation jar
+Ensure there are no problems in the workspace
+The service must be down before creation of jar
+Addition of cbldat files
+Don’t change the folder or file names once the jar has been created.
+No addition/removal/rename of jars in the dependency lib after jar creation.
+
+Checklist before the deployment
+Maintain versioning of all check-ins in the below mentioned path
+Path : \\10.243.6.40\Visual Cobol Microservices Checkin
+config.properties and application.properties must have relative paths of the files.
+application.properties must contain parameterized version of DB logins.
+application.properties must contain the DB parameters set for DB Pooling(thread life time, thread count etc)
+Response outline of the service must be placed inside JsonAta folder.
+Modify Banner.txt particular to the service.
+In DBProperties file, the value of day and ref mode fields must be set to true.
+Make sure old jars to be removed and replace it with new one.
+Checklist for CR
+Feasibility submission – 1-2 days.
+Development should not take more than 5 days.
+Prepare unit test cases for framework and services
+Initial testing using Dev DB data
+Once the code is almost finalized, testing should be done on ST DB data
+While testing on ST DB data, start internal review (JAVA, COBOL) in parallel.
+If all the test cases are passed on ST data and internal review (JAVA, COBOL) done, then go for CHECK-IN/ HP FORTIFY SCAN
+WBT should be prepared with DEV DB data.
+While promoting CR to ST, if vulnerabilities are raised go with no observations mail from ISD. DGM approval for suppression will be provided at UAT promotion level.
+Whenever any new concept is being introduced or changes in framework, deploy and test it on DEV region and then go for ST deployment.
+While redeploying a service, don’t modify existing check-in version, and create the next version. [Even for a minor change]
+Once the CR is in ST, start gathering data for UAT and test for the same.
+Once you get ST PASS, do load testing on ST region and store reports in the below path
+	Path: \\10.243.6.40\Visual Cobol Microservices Load Report
+
+NOTE: Don’t manipulate the check-in folders in the path.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 package com.tcs.bancs.microservices.service;
 import com.tcs.bancs.microservices.enc.utils.SBISFTP;
 import java.io.IOException;
