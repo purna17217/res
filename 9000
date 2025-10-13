@@ -1505,3 +1505,114 @@ private DataSource getDataSource(String dbType) {
 }
 }
 
+
+
+
+
+
+package com.tcs.bancs.microservices.db.model;
+
+import java.io.Serializable;
+
+import javax.persistence.EmbeddedId;
+import javax.persistence.Entity;
+@Entity
+public class Ig01 extends BaseModel implements Serializable {
+	private static final long serialVersionUID = 1L;
+	 
+	@EmbeddedId
+	private Ig01pk ig01pk ;
+
+	public Ig01pk getIg01pk() {
+		return ig01pk;
+	}
+
+	public void setIg01pk(Ig01pk ig01pk) {
+		this.ig01pk = ig01pk;
+	}	
+	
+}
+
+
+package com.tcs.bancs.microservices.db.model;
+
+import java.io.Serializable;
+
+import javax.persistence.Column;
+import javax.persistence.Embeddable;
+
+@Embeddable
+public class Ig01pk implements Serializable {
+	private static final long serialVersionUID = 1L;
+	 
+	@Column(name="INST_NO")
+	private String instno;
+	
+
+
+	public String getInstno() {
+		return instno;
+	}
+
+	public void setInstno(String instno) {
+		this.instno = instno;
+	}
+
+	
+
+	public Ig01pk() {
+		super();
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((instno == null) ? 0 : instno.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Ig01pk other = (Ig01pk) obj;
+		if (instno == null) {
+			if (other.instno != null)
+				return false;
+		} else if (!instno.equals(other.instno))
+			return false;
+		return true;
+	}
+	
+}
+
+
+		signonDate = dbProcess.fetchRepositories(null, "IG01", "Ig01Detail", "findByIg01Details", false,true, queryParamsSignonDate);
+
+queryParamsSignonDate.add("000");
+
+package com.tcs.bancs.microservices.repository.day;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import com.tcs.bancs.microservices.db.model.Ig01;
+import com.tcs.bancs.microservices.db.model.Ig01pk;
+
+
+
+@Repository
+public interface Ig01DetailsDayRepo extends JpaRepository<Ig01, Ig01pk>{
+	 @Query(value="select /*+ INDEX_ASC(IG01 IG01PK) */ INST_NO from IG01 where INST_NO=:instno", nativeQuery=true)
+	  public List<Ig01> findByIg01Details(@Param("instno")String instno);
+
+}
