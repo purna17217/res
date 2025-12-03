@@ -1,4 +1,4 @@
-Checklist for coding
+pChecklist for coding
 Ingress URL of a service-
 -	Use lower case
 -	Use hyphen(-) if necessary
@@ -80,7 +80,115 @@ NOTE: Don’t manipulate the check-in folders in the path.
 
 
 
+package com.tcs.bancs.microservices.config;
 
+import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.EntityManagerFactoryBuilder;
+
+import javax.persistence.EntityManagerFactory;
+import javax.sql.DataSource;
+import java.util.HashMap;
+
+@Component
+@Lazy
+public class CBSPRNightDbConfig {
+
+    @Value("${prnight.jpa.properties.hibernate.dialect:com.tcs.bancs.microservices.configuration.CustomOracleDialect}")
+    private String hibernateDialect;
+
+    @Value("${prnight.datasource.hikari.pool-name}")
+    private String poolName;
+
+    @Value("${prnight.datasource.hikari.connectionTimeout}")
+    private long connectionTimeout;
+
+    @Value("${prnight.datasource.hikari.idleTimeout}")
+    private long idleTimeout;
+
+    @Value("${prnight.datasource.hikari.maxLifetime}")
+    private long maxLifetime;
+
+    @Value("${prnight.datasource.hikari.registerMbeans}")
+    private boolean registerMbeans;
+
+    private HikariDataSource prnightDataSource;
+    private LocalContainerEntityManagerFactoryBean prnightEMF;
+    private JpaTransactionManager prnightTxManager;
+
+    private final EntityManagerFactoryBuilder builder;
+
+    public CBSPRNightDbConfig(EntityManagerFactoryBuilder builder) {
+        this.builder = builder;
+    }
+
+    // 🚀 Initialize Database Only When Called (Lazy)
+    public synchronized void initialize() {
+        if (prnightDataSource != null) {
+            return; // already initialized
+        }
+
+        // Create the DataSource
+        prnightDataSource = (HikariDataSource) DataSourceBuilder
+                .create()
+                .type(HikariDataSource.class)
+                .build();
+
+        prnightDataSource.setPoolName(poolName);
+        prnightDataSource.setConnectionTimeout(connectionTimeout);
+        prnightDataSource.setIdleTimeout(idleTimeout);
+        prnightDataSource.setMaxLifetime(maxLifetime);
+        prnightDataSource.setRegisterMbeans(registerMbeans);
+
+        // Hibernate properties
+        HashMap<String, Object> props = new HashMap<>();
+        props.put("hibernate.dialect", hibernateDialect);
+
+        // Create EntityManagerFactory
+        prnightEMF = builder
+                .dataSource(prnightDataSource)
+                .packages("com.tcs.bancs.microservices.db.model")
+                .properties(props)
+                .persistenceUnit("prnight")
+                .build();
+
+        // Create Transaction Manager
+        prnightTxManager = new JpaTransactionManager(prnightEMF.getObject());
+    }
+
+    // Getter for DataSource
+    public DataSource getDataSource() {
+        return prnightDataSource;
+    }
+
+    // Getter for EntityManagerFactory
+    public EntityManagerFactory getEntityManagerFactory() {
+        return prnightEMF != null ? prnightEMF.getObject() : null;
+    }
+
+    // Getter for Transaction Manager
+    public JpaTransactionManager getTransactionManager() {
+        return prnightTxManager;
+    }
+
+    // ❌ Shut Down PRNIGHT DB When Not Needed
+    public synchronized void shutdown() {
+        try {
+            if (prnightDataSource != null) {
+                prnightDataSource.close();
+            }
+        } catch (Exception ignored) {}
+
+        prnightDataSource = null;
+        prnightEMF = null;
+        prnightTxManager = null;
+    }
+}
 
 
 
