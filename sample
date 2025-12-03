@@ -1483,3 +1483,818 @@ return className;
  YBANCS   D                          w012band
 	
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@RestController
+@Api(value = "Aggregation_API", description = " ", tags = { "Aggregation API" })
+@RequestMapping("/")
+@Cacheable
+@CacheEvict
+public class YONO_Enquiry_Service {
+
+//////////////////////////////////////////////////////////////////////////--------ENV VARIABLES STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	@Autowired
+	AggregationServiceImpl aggregationServiceImpl;
+
+	@Autowired
+	MigenqDetailsRepositoryImpl migDetails;
+	
+	@Autowired
+	TelmDetailDayRepo telmRepo;
+	
+	@Autowired
+	CrddDetailDayRepo crddRepo;
+	
+	@Autowired
+	DBProcess dbProcess;
+	
+	  //START OF IR 25040080 
+	@Autowired
+	SyscDetailNightRepo syscReponight;
+	  //END OF IR 25040080 
+
+	@Value("${UTENVCALS-BANCS-TRACE-STATE}")
+	private String bancsTraceState;
+
+	@Value("${UTENVCALS-MASTER-DQPTYPE}")
+	private String masterDQType;
+
+	@Value("${UTENVCALS-BANCS-HOST}")
+	private String bancsHost;
+
+	@Value("${UTENVCALS-FNS-SYSNUM}")
+	private String fnsSysnum;
+
+	@Value("${UTENVCALS-CTRL-SYSNUM}")
+	private String ctrlSysnum;
+
+	@Value("${UTENVCALS-DAY-SYSNUM}")
+	private String daySysnum;
+
+	@Value("${UTENVCALS-NIGHT-SYSNUM}")
+	private String nightSysnum;
+
+	@Value("${UTENVCALS-NON24H-SYSNUM}")
+	private String non24hsum;
+
+	@Value("${UTENVCALS-DEF-RMODE}")
+	private String defRMode;
+
+	@Value("${UTENVCALS-MASTER-DB-1}")
+	private String masterDB1;
+
+	@Value("${UTENVCALS-MASTER-DB-2}")
+	private String masterDB2;
+
+	@Value("${UTENVCALS-SERVICES-FLAG}")
+	private String servicesFlag;
+
+	@Value("${VC-MS-SERVICE-ID}")
+	private String serviceid;
+	
+	@Value("${cif.response.outline.location}")
+	private String CIF_RES_FILE_PATH;
+	
+	@Value("${acc.response.outline.location}")
+	private String ACC_RES_FILE_PATH;
+	
+	@Value("${UTENVCALS-INSPARAM-FLAG}")
+	private String INSPARAM_FLAG;
+	
+	@Value("${UTENVCALS-INSPARAM-VALUE}")
+	private String INSPARAM_VALUE;
+	
+    @Value("${UTENVCALS-DEF-RMODE}")
+    private String dbmode;
+	
+    @Autowired
+    @Qualifier("dayDataSource")
+    private DataSource dayDataSource;
+    
+	  //START OF IR 25040080
+    
+	@Value("${UTENVCALS-MASTER-DB}")
+	private String masterDB;
+	
+    @Autowired
+    @Qualifier("nightDataSource")
+    private DataSource nightDataSource;
+	   //END OF CR 25040080 
+//////////////////////////////////////////////////////////////////////////--------ENV VARIABLES ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+	Logger logger = LoggerFactory.getLogger(YONO_Enquiry_Service.class);
+	
+//////////////////////////////////////////////////////////////////////////--------PATH FILES READING STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	String ErrorCodeMasterFilePath = CacheConfig.frameworkConfigProperties
+			.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	String sourceAuth = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	String ipConfig = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	Properties error = PropertyLoader
+			.readPropertyFile(new String(ErrorCodeMasterFilePath + "/ErrorCodeMaster.properties"));
+	Properties sId = PropertyLoader.readPropertyFile(new String(sourceAuth + "/SourceIdList.properties"));
+	Properties ipprop = PropertyLoader.readPropertyFile(new String(ipConfig + "/IpConfigMaster.properties"));
+	
+//////////////////////////////////////////////////////////////////////////--------PATH FILES READING ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+	private final Response responseObj;
+
+	@Autowired
+	public YONO_Enquiry_Service(Response responseObj) {
+		this.responseObj = responseObj;
+	}
+	
+	@InitBinder
+	public void initBinder(WebDataBinder binder) {
+		binder.setDisallowedFields(new String[] {});
+	}
+	
+    
+//////////////////////////////////////////////////////////////////////////-------- OBJECTS CREATION STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	
+	ErrorResponse 			        errobj 		 = new ErrorResponse();
+	Error_Description 		        errdesc 	 = new Error_Description();
+	YONO_Child                      yonochild    = new YONO_Child();
+	InputValidations_YONO           inpval 		 = new InputValidations_YONO();
+	Gson gson = new Gson();
+//////////////////////////////////////////////////////////////////////////-------- OBJECTS CREATION ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+
+	@SuppressWarnings({ "unchecked", "rawtypes"})
+	@ApiOperation(value = "Call YONO", notes = "YONOEnq Service:This API is used to fetch Customer Details.")
+	@PostMapping(value = { "/YONOEnq" }, produces = { "application/json" })
+	@CrossOrigin()
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	@Validated
+	public ResponseEntity<Object> getCustomerDetails(@RequestBody(required = false) @Valid RequestBean_YONO reqbean,
+			HttpServletRequest request, @RequestHeader HttpHeaders headers, HttpServletResponse response)
+			throws Exception {
+
+		response.setHeader("X-Content-Type-Options", "nosniff");
+		response.setHeader("X-Frame-Options", "DENY");
+		response.setHeader("Content-Security-Policy", "default-src 'self'");
+		response.setHeader("X-XSS-Protection", "1;mode=block");
+		
+//////////////////////////////////////////////////////////////////////////-------- INITIAL VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		
+		String IPAddress = request.getHeader("X-Forwarded-For");
+		String remoteAddress = request.getRemoteAddr();
+		String accept = request.getHeader("Content-Type");
+		DateTimeFormatter entryDate1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss:SSS");
+		LocalDateTime time = LocalDateTime.now();
+		String entryDate = entryDate1.format(time);
+		
+//////////////////////////////////////////////////////////////////////////-------- SERVICE VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		String reqbeanstr = new String();
+		String finalResponse = new String();
+		String CIFRES_FILE_PATH = new String();
+		String ACCRES_FILE_PATH = new String();
+		String refno = new String();
+		String tellerno = new String();
+		String branchno = new String();
+		String noOfRecords = new String();
+		String cif_or_acct = new String();
+		String option_flag = new String();
+		String cifoutRes= new String();
+		String accoutRes= new String();
+		String errno = new String();
+		String errDesc = new String();
+		String sourceId  = new String();
+		String validChkdFlag = new String();
+		List<String> chkdRes = new ArrayList<>();
+		String chkderr = new String();
+		List<String> errList = new ArrayList<>();
+		//START OF IR 25040080
+//		DataSource dataSource 		 = getDataSource("day");
+		DataSource dataSource 		 = dayDataSource;
+		//END OF IR 25040080
+		List<Telm> telm = new ArrayList<Telm>();
+		List<Brhm> brhm = new ArrayList<Brhm>();
+		List<Crdd> crdd = new ArrayList<Crdd>();
+		String teller_identifier = new String();
+		String formattedTeller = new String();
+		String formattedBranch = new String();
+		//START OF IR 25100006
+		String formattedCardFileForCrdd =  new String();
+		String formattedTellerForCrdd=  new String();
+		String formatTellerRemoveZeros=  new String();	
+		String sign_on_flag= new String();
+		List<Ig01> signonDate = new ArrayList<Ig01>();
+		String sigonTelmDate = new String();
+		String stat = new String();
+		String Ig01date = new String();
+		//END OF IR 25100006
+		
+		
+//////////////////////////////////////////////////////////////////////////-------- ENV VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		
+		String callcode = "S";
+		String opt = "";
+		List<String> res = new ArrayList<String>();
+		String formattedmasterDB1 = StringUtils.rightPad(masterDB1, 15);
+		String formattedmasterDB2 = StringUtils.rightPad(masterDB2, 15);
+	
+		String lsRecArea = bancsTraceState.trim() + masterDQType.trim() + bancsHost.trim() + fnsSysnum.trim()
+		+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + defRMode.trim()
+		+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+String[] arr = { bancsTraceState, masterDQType, bancsHost, fnsSysnum, ctrlSysnum, daySysnum, nightSysnum,
+		non24hsum, defRMode, masterDB1, masterDB2, servicesFlag,masterDB, serviceid,CIF_RES_FILE_PATH,ACC_RES_FILE_PATH,ErrorCodeMasterFilePath, sourceAuth, ipConfig, INSPARAM_FLAG, INSPARAM_VALUE};
+//END OF CR 25040080
+		
+//////////////////////////////////////////////////////////////////////////-------- INPUT VALIDATIONS--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+try {
+	    if(reqbean != null) {
+	    	if(!reqbean.isEmpty()){
+	    		
+	    		reqbeanstr = gson.toJson(reqbean).toString();
+	    		
+	    		tellerno   = reqbean.getTellerId();
+	    		branchno   = reqbean.getBranchCode();	
+	    	    refno	   =  reqbean.getReferenceNumber();
+	    	    
+		    
+		    CIFRES_FILE_PATH = CIF_RES_FILE_PATH;
+			ACCRES_FILE_PATH = ACC_RES_FILE_PATH;
+
+		    errList = inpval.validateRefNum(refno);
+		    errno = errList.get(1);
+		    refno = errList.get(0);
+		    if(!errno.equals("00000")) {			
+				errDesc = error.getProperty(errno);			
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			errList = inpval.validateTellerNum(tellerno);
+		    errno = errList.get(1);
+		    tellerno = errList.get(0);
+			if (!errno.equals("00000"))
+			{
+				errDesc = error.getProperty(errno);	
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			
+			errList = inpval.validateBranchNum(branchno);
+		    errno = errList.get(1);
+		    branchno = errList.get(0);
+			if (!errno.equals("00000")) 
+			{
+
+				errDesc = error.getProperty(errno);				
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			cif_or_acct = reqbean.getcif_or_acct_number();
+			chkdRes = inpval.validateCifOrAcctNumber(cif_or_acct);
+			errno = chkdRes.get(1);
+			if (!errno.equals("00000")) 
+			{
+				if (errno.equals("CB481")) 
+				{
+					errDesc = error.getProperty(errno);				
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);							
+				} else {
+					chkderr = errno;
+					validChkdFlag = "N";
+				}
+			} else {
+			   cif_or_acct = chkdRes.get(0);
+				validChkdFlag = "Y";
+			}
+			
+			option_flag = reqbean.getoptionflag();
+			errList = inpval.Validate_Option_Flag(option_flag);
+		    errno = errList.get(1);
+		    option_flag = errList.get(0);
+			if (!errno.equals("00000")) 
+			{
+				errDesc = error.getProperty(errno);				
+		    		finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);			
+			}
+						
+			logger.info("VC------------------------Initiating DB Pooling------------------------VC");
+			
+			if (accept != null && accept.contains("application/json")) {
+				if (validChkdFlag.equals("Y")) {
+						logger.info(
+								"VC------------------------Intiating Teller&Branch Validation------------------------VC");
+						ArrayList<Object> queryParamsTlr = new ArrayList<>();
+						ArrayList<Object> queryParamsBrhm = new ArrayList<>();
+						ArrayList<Object> queryParamsSignonDate = new ArrayList<>();
+						ArrayList<Object> queryParamsCrddTeller = new ArrayList<>();
+						queryParamsTlr.add("003");
+						formattedTeller = StringUtils.leftPad(tellerno, 16, "0");
+						queryParamsTlr.add(formattedTeller);
+						
+						formattedBranch = "003" + StringUtils.leftPad(branchno, 16, "0");
+						queryParamsBrhm.add(formattedBranch);
+						
+						queryParamsSignonDate.add("000");
+						
+						//For CRDD Teller Check
+						String tempString = "BYPASS_TLM.card";
+						formattedCardFileForCrdd = String.format("%-30s",tempString );
+					    formatTellerRemoveZeros = tellerno.replaceAll("^0+(?!$)", "");	
+						formattedTellerForCrdd= String.format("%-299s", formatTellerRemoveZeros);
+						
+						
+						queryParamsCrddTeller.add(formattedCardFileForCrdd);
+						queryParamsCrddTeller.add(formattedTellerForCrdd);	
+						
+						try {
+							// telm = dbProcess.fetchRepositories(null, "TELM", "TelmDetail", "findByTelmDetails", false,true, queryParamsTlr);
+							crdd = dbProcess.fetchRepositories(null, "CRDD", "CrddDetail", "findByCrddDetails", false,true, queryParamsCrddTeller);
+							brhm = dbProcess.fetchRepositories(null, "BRHM", "BrhmDetail", "findByBrhmDetails", false,true, queryParamsBrhm);
+							//START OF IR 25100006
+							signonDate = dbProcess.fetchRepositories(null, "IG01", "Ig01Detail", "findByIg01Details", false,true, queryParamsSignonDate);
+					        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+					        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("ddMMyyyy");					       
+					        LocalDate date = LocalDate.parse(signonDate.get(0).getCntldate(), inputFormatter);					       
+					        String dateStringDDMMYYYY = date.format(outputFormatter);
+					        Ig01date = dateStringDDMMYYYY;
+					      //END OF IR 25100006
+						} catch (Exception e1) {
+							// TODO Auto-generated catch block
+							logger.info("Exception Occured");
+						}
+				
+
+	                    if (crdd != null && !crdd.isEmpty()) 
+							{
+							
+								if(formatTellerRemoveZeros.equals(crdd.get(0).getVALUE().trim())) {
+									
+									logger.info("VC------------------------Virtual Teller Validated Sucessfully------------------------VC "+refno);
+									
+									if(brhm != null && !brhm.isEmpty()) {
+									    logger.info(
+									            "VC------------------------Virtual Teller & Branch Validated Sucessfully------------------------VC "+refno);	
+
+																							    logger.info(
+											            "VC------------------------Teller&Branch Validated Sucessfully------------------------VC");        							
+												logger.info("VC------------------------Region Mode check started------------------------VC" + refno);
+					    							List<Sysc> syscRes = new ArrayList<Sysc>();
+					    							syscRes = syscReponight.findBySyscDetail();
+					    							try {
+					    								if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("N")) {
+					    									dataSource = nightDataSource;
+					    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+					    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+					    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+					    									logger.info("-----------REGION MODE IS NIGHT IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+					    									}
+					    								else if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("D")){
+					    									dataSource = dayDataSource;
+					    									lsRecArea = bancsTraceState.trim() + 'D' + bancsHost.trim() + fnsSysnum.trim()
+					    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'D'
+					    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+					    									logger.info("-----------REGION MODE IS DAY IN DATABASE - MODE SET TO DAY DB----------" + refno);
+					    									}
+					    								else {
+					    									dataSource = nightDataSource;
+					    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+					    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+					    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+					    									
+					    									logger.info("-----------REGION MODE IS INVALID IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+					    									}
+					    								} catch(Exception e) {
+					    									dataSource = nightDataSource;
+					    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+					    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+					    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+					    									
+					    									logger.info("-----------NO SYSC ENTRY IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+					    								}	
+
+					    							logger.info(
+																"VC------------------------Region Mode check ended------------------------VC" + refno);
+					    				
+											    	res = yonochild.callYONOEnquiryChild(branchno, tellerno, cif_or_acct, option_flag, dataSource, lsRecArea);
+											    	cifoutRes = res.get(0);									
+													accoutRes = res.get(1);
+													noOfRecords = res.get(2);
+													logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC" + noOfRecords);
+													errno = res.get(3);
+													logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC" + errno);
+												
+												
+						
+
+							
+							}
+						
+								else {
+									logger.info("VC--------------INVALID BRANCH NUMBER--------------VC "+refno);
+									errno = "0526";
+									errDesc = error.getProperty(errno);
+									finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+									migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );								
+									return new ResponseEntity(finalResponse, HttpStatus.OK);
+								}
+							
+									
+									
+								}
+								else {
+									logger.info("VC--------------USER NOT SIGNED ON--------------VC "+refno);
+									errno = "0148";
+									errDesc = error.getProperty(errno);
+									finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+									migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+									return new ResponseEntity(finalResponse, HttpStatus.OK);
+								}
+								
+							}
+							
+							else{
+							
+
+							try {
+								telm = dbProcess.fetchRepositories(null, "TELM", "TelmDetail", "findByTelmDetails", false,true, queryParamsTlr);
+								signonDate = dbProcess.fetchRepositories(null, "IG01", "Ig01Detail", "findByIg01Details", false,true, queryParamsSignonDate);
+						        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+						        LocalDate date = LocalDate.parse(signonDate.get(0).getCntldate(), inputFormatter);
+						        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("ddMMyyyy");
+						        String ddmmyyyy = date.format(outputFormatter);			        
+						        Ig01date = ddmmyyyy;
+							} catch (Exception e) {
+								logger.info("Exception Occured at TELM " + refno );
+							}
+							
+							if(telm != null && !telm.isEmpty()) {
+								sign_on_flag=telm.get(0).getSIGNON_FLAG(); 
+								teller_identifier = telm.get(0).getTELLER_IDENTIFIER();
+								sigonTelmDate = telm.get(0).getSIGN_ON_DATE();
+								stat = telm.get(0).getSTAT();
+								if("Y".equals(teller_identifier)) {
+									if(brhm != null && !brhm.isEmpty()) {
+									    logger.info(
+									            "VC------------------------Virtual Teller Based On Teller Identifier & Branch Validated Sucessfully------------------------VC "+refno);	
+												
+									    logger.info(
+						            "VC------------------------Teller&Branch Validated Sucessfully------------------------VC");  
+						  //START OF IR 25040080        							
+							logger.info("VC------------------------Region Mode check started------------------------VC" + refno);
+    							List<Sysc> syscRes = new ArrayList<Sysc>();
+    							syscRes = syscReponight.findBySyscDetail();
+
+    							try {
+    								if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("N")) {
+    									dataSource = nightDataSource;
+    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+    									logger.info("-----------REGION MODE IS NIGHT IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+    									}
+    								else if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("D")){
+    									dataSource = dayDataSource;
+    									lsRecArea = bancsTraceState.trim() + 'D' + bancsHost.trim() + fnsSysnum.trim()
+    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'D'
+    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+    									logger.info("-----------REGION MODE IS DAY IN DATABASE - MODE SET TO DAY DB----------" + refno);
+    									}
+    								else {
+    									dataSource = nightDataSource;
+    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+    									
+    									logger.info("-----------REGION MODE IS INVALID IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+    									}
+    								} catch(Exception e) {
+    									dataSource = nightDataSource;
+    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+    									
+    									logger.info("-----------NO SYSC ENTRY IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+    								}
+    							//End of IR 25090016	
+
+    							logger.info(
+											"VC------------------------Region Mode check ended------------------------VC" + refno);
+    							//END OF IR 25040080  
+						    	res = yonochild.callYONOEnquiryChild(branchno, tellerno, cif_or_acct, option_flag, dataSource, lsRecArea);
+						    	cifoutRes = res.get(0);									
+								accoutRes = res.get(1);
+								noOfRecords = res.get(2);
+								logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC" + noOfRecords);
+								errno = res.get(3);
+								logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC" + errno);			
+						
+									   
+							}
+						
+								else {
+									logger.info("VC--------------INVALID BRANCH NUMBER--------------VC "+refno);
+									errno = "0526";
+									errDesc = error.getProperty(errno);
+									finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+									migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );								
+									return new ResponseEntity(finalResponse, HttpStatus.OK);
+								}
+							}
+								
+								else if("Y".equals(sign_on_flag)&& "01".equals(stat)  && Objects.equals(sigonTelmDate, Ig01date))
+								{
+									if(brhm != null && !brhm.isEmpty()) {
+									    logger.info(
+									            "VC------------------------Teller & Branch Validated Sucessfully------------------------VC "+refno);
+												
+												
+												    logger.info(
+								            "VC------------------------Teller&Branch Validated Sucessfully------------------------VC");        							
+									logger.info("VC------------------------Region Mode check started------------------------VC" + refno);
+		    							List<Sysc> syscRes = new ArrayList<Sysc>();
+		    							syscRes = syscReponight.findBySyscDetail();
+		    							try {
+		    								if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("N")) {
+		    									dataSource = nightDataSource;
+		    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+		    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+		    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+		    									logger.info("-----------REGION MODE IS NIGHT IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+		    									}
+		    								else if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("D")){
+		    									dataSource = dayDataSource;
+		    									lsRecArea = bancsTraceState.trim() + 'D' + bancsHost.trim() + fnsSysnum.trim()
+		    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'D'
+		    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+		    									logger.info("-----------REGION MODE IS DAY IN DATABASE - MODE SET TO DAY DB----------" + refno);
+		    									}
+		    								else {
+		    									dataSource = nightDataSource;
+		    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+		    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+		    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+		    									
+		    									logger.info("-----------REGION MODE IS INVALID IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+		    									}
+		    								} catch(Exception e) {
+		    									dataSource = nightDataSource;
+		    									lsRecArea = bancsTraceState.trim() + 'N'+ bancsHost.trim() + fnsSysnum.trim()
+		    									+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + 'N'
+		    									+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim() + masterDB.trim() + INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+		    									
+		    									logger.info("-----------NO SYSC ENTRY IN DATABASE - MODE SET TO NIGHT DB----------" + refno);
+		    								}	
+
+		    							logger.info(
+													"VC------------------------Region Mode check ended------------------------VC" + refno);
+		    				
+								    	res = yonochild.callYONOEnquiryChild(branchno, tellerno, cif_or_acct, option_flag, dataSource, lsRecArea);
+								    	cifoutRes = res.get(0);									
+										accoutRes = res.get(1);
+										noOfRecords = res.get(2);
+										logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC" + noOfRecords);
+										errno = res.get(3);
+										logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC" + errno);
+						
+									  
+								}
+									else {
+										logger.info("VC--------------INVALID BRANCH NUMBER--------------VC "+refno);
+										errno = "0526";
+										errDesc = error.getProperty(errno);
+										finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+										migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );								
+										return new ResponseEntity(finalResponse, HttpStatus.OK);
+									}
+									
+								}
+								
+									
+									
+							else {
+								logger.info("VC--------------USER NOT SIGNED ON--------------VC "+refno);
+								errno = "0148";
+								errDesc = error.getProperty(errno);
+								finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+								migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+								return new ResponseEntity(finalResponse, HttpStatus.OK);
+							}
+						}
+							
+							else {
+								logger.info("VC--------------INVALID TELLER NUMBER--------------VC "+refno);
+								errno = "0529";
+								errDesc = error.getProperty(errno);
+								finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+								migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+								return new ResponseEntity(finalResponse, HttpStatus.OK);
+							}
+							
+						}					  
+						
+					
+					}
+					else {
+						errno = chkderr;
+						try(Connection connection = dataSource.getConnection()) {	
+						errDesc = errdesc.getCbsErrDesc(chkderr, callcode, opt, lsRecArea, connection);
+						} catch(SQLException e) {
+							errno = "3293";
+						    errDesc= error.getProperty(errno);						
+								finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+								migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+								return new ResponseEntity(finalResponse, HttpStatus.OK);
+				         }
+						finalResponse = errobj.getErrorResponse(chkderr, errDesc, refno);
+						migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+						return new ResponseEntity(finalResponse, HttpStatus.OK);
+					}				
+			}
+			else {
+				errno = "0435";
+			    errDesc= error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);		
+			}
+		}
+			else {
+				errno = "CB422";
+			    errDesc= error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}  
+	    }
+
+	    else {
+	    	errno = "CB422";
+		    errDesc= error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+	    }
+	    
+	    //Response from service
+	    if (errno.equals("0000")) {
+			errno = "";
+			finalResponse = responseObj.getResponse(CIFRES_FILE_PATH, ACCRES_FILE_PATH, cifoutRes, accoutRes, refno, noOfRecords);
+			migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "0", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "success" );
+		} else if(errno.equals("3293")) {
+			errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);				
+		}
+	    else {
+			try(Connection connection = dataSource.getConnection()) {
+			errDesc = errdesc.getCbsErrDesc(errno, callcode, opt, lsRecArea, connection);
+			} catch(SQLException e) {			
+				errno = "3293";					
+				errDesc = error.getProperty(errno);				
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+			finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+			migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+		}
+		return new ResponseEntity(finalResponse, HttpStatus.OK);
+}
+catch(Exception  ex) {
+	logger.info(" EXCEPTION OCCURED IN 	YONO ENQUIRY " +  refno);
+	errno = "0155";
+	errDesc = error.getProperty(errno);
+	finalResponse = errobj.getErrorResponse(errno, errDesc, refno);	
+	migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+	return new ResponseEntity(finalResponse, HttpStatus.OK);
+
+} 
+}  
+	}...
+
+
+
+@Configuration
+@PropertySource({"file:${ChannelsPropConfigPath}/Config/DBProperties.properties"})
+@ConditionalOnProperty(value = {"prnight.module.enabled"}, havingValue = "true", matchIfMissing = true)
+@EnableTransactionManagement
+@EnableMBeanExport(registration = RegistrationPolicy.IGNORE_EXISTING)
+@EnableJpaRepositories(entityManagerFactoryRef = "prnightEntityManagerFactory", transactionManagerRef = "prnightTransactionManager", basePackages = {"com.tcs.bancs.microservices.repository.night"})
+public class CBSPRNightDbConfig
+{
+public static Set<Class<? extends Object>> nightClasses = null;
+
+@Value("${prnight.jpa.properties.hibernate.dialect:com.tcs.bancs.microservices.configuration.CustomOracleDialect}")
+private String hibernateDialect;
+
+//@Value("${prnight.datasource.hikari.maximum-pool-size}")
+//private int maxPoolSize;
+//
+//@Value("${prnight.datasource.hikari.minimum-idle}")
+//private int minIdle;
+@Value("${prnight.datasource.hikari.pool-name}")
+private String poolName;
+@Value("${prnight.datasource.hikari.connectionTimeout}")
+private long connectionTimeout;
+@Value("${prnight.datasource.hikari.idleTimeout}")
+private long idleTimeout;
+@Value("${prnight.datasource.hikari.maxLifetime}")
+private long maxLifetime;
+@Value("${prnight.datasource.hikari.registerMbeans}")
+private boolean registerMbeans;
+
+@Lazy
+@Bean(name = {"prnightDataSource"})
+@ConfigurationProperties(prefix = "prnight.datasource")
+public HikariDataSource nightdataSource() {
+HikariDataSource dataSource = (HikariDataSource)DataSourceBuilder.create().type(HikariDataSource.class).build();
+	//HikariDataSource dataSource = new 	HikariDataSource();
+//dataSource.setMaximumPoolSize(this.maxPoolSize);
+//dataSource.setMinimumIdle(this.minIdle);
+dataSource.setPoolName(this.poolName);
+dataSource.setConnectionTimeout(this.connectionTimeout);
+dataSource.setIdleTimeout(this.idleTimeout);
+dataSource.setMaxLifetime(this.maxLifetime);
+dataSource.setRegisterMbeans(this.registerMbeans);
+return dataSource;
+}
+
+
+
+@Bean(name = {"prnightTransactionManager"})
+public PlatformTransactionManager prnightTransactionManager(@Qualifier("prnightEntityManagerFactory") EntityManagerFactory prnightEntityManagerFactory) {
+return (PlatformTransactionManager)new JpaTransactionManager(prnightEntityManagerFactory);
+}
+
+
+
+@Bean(name = {"prnightEntityManagerFactory"})
+public LocalContainerEntityManagerFactoryBean prnightEntityManagerFactory(EntityManagerFactoryBuilder builder, @Qualifier("prnightDataSource") DataSource dataSource) {
+HashMap<String, Object> props = new HashMap<>();
+props.put("hibernate.dialect", this.hibernateDialect);
+
+return builder.dataSource(dataSource).properties(props).packages(new String[] { "com.tcs.bancs.microservices.db.model"
+}).persistenceUnit("prnight").build();
+}
+}
+@SpringBootApplication(exclude = { DataSourceAutoConfiguration.class, // HibernateJpaAutoConfiguration.class,
+		DataSourceTransactionManagerAutoConfiguration.class }, scanBasePackages = "com.tcs.bancs.microservices")
+@ComponentScan(basePackages = { "com.tcs.bancs.microservices", "com.tcs.bancs.microservices.config",
+		"com.tcs.bancs.api", "com.tcs.bancs.microservices.interceptor", "com.tcs.bancs.microservices.api",
+		"com.tcs.bancs.microservices.model", "com.tcs.bancs.microservices.util", "com.tcs.bancs.microservices",
+		"com.tcs.bancs.microservices.impl", "com.tcs.bancs.microservices.repository.day",
+		"com.tcs.bancs.microservices.repository.night", "com.tcs.bancs.microservices.repository.ref",
+		"com.tcs.bancs.microservices.exception", "com.tcs.bancs.microservices.mappings",
+		"com.tcs.bancs.microservices.model" })
+@EnableSwagger2
+@Import({ CBSDayDbConfig.class, CBSNightDbConfig.class, CBSRefDbConfig.class })
+public class OpenBankingServicesApp extends SpringBootServletInitializer {
+	private static Logger LOGGER = LoggerFactory.getLogger(OpenBankingServicesApp.class);
+
+	public static void main(String[] args) {
+
+		if (System.getProperty("ChannelsPropConfigPath") == null) {
+			LOGGER.info(
+					"Path to config property file is not set! Please set the system variable \"ChannelsPropConfigPath\" with the path to the config file.");
+			LOGGER.info("Execution Finished with Error!");
+		}
+
+		SpringApplication.run(OpenBankingServicesApp.class, args);
+
+	}
