@@ -194,6 +194,111 @@ public class CBSPRNightDbConfig {
 
 
 
+package com.tcs.bancs.microservices.config;
+
+import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicLong;
+
+@Component
+public class RequestActivityTracker {
+
+    private final AtomicLong lastRequestTime = new AtomicLong(Instant.now().toEpochMilli());
+
+    // call when any API hits
+    public void updateActivity() {
+        lastRequestTime.set(Instant.now().toEpochMilli());
+    }
+
+    // scheduler will check this
+    public long getLastActivityTime() {
+        return lastRequestTime.get();
+    }
+}
+
+
+
+package com.tcs.bancs.microservices.config;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.HandlerInterceptor;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+@Component
+public class ActivityInterceptor implements HandlerInterceptor {
+
+    @Autowired
+    private RequestActivityTracker activityTracker;
+
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        activityTracker.updateActivity();
+        return true;
+    }
+}
+
+
+
+
+
+
+package com.tcs.bancs.microservices.config;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class InterceptorConfig implements WebMvcConfigurer {
+
+    @Autowired
+    private ActivityInterceptor activityInterceptor;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(activityInterceptor);
+    }
+}
+
+
+
+
+package com.tcs.bancs.microservices.config;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+@Component
+public class DbIdleMonitor {
+
+    @Autowired
+    private RequestActivityTracker activityTracker;
+
+    @Autowired
+    private CBSPRNightDbConfig dbConfig;
+
+    private static final long IDLE_LIMIT = 10 * 60 * 1000; // 10 minutes
+
+    @Scheduled(fixedRate = 60000)  // runs every 1 min
+    public void monitorAndShutdown() {
+        long now = System.currentTimeMillis();
+        long last = activityTracker.getLastActivityTime();
+
+        if (now - last >= IDLE_LIMIT) {
+
+            if (dbConfig.getDataSource() != null) {
+                System.out.println("⚠️ No requests for 10 min — shutting down PRNIGHT DB connection pool");
+                dbConfig.shutdown();
+            }
+        }
+    }
+}
 
 
 
