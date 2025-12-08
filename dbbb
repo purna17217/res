@@ -181,3 +181,71 @@ public void loadNightData() throws Exception {
         // Use DB here
     }
 }
+
+
+
+_----------++++++++++++++++++++-----------
+package com.tcs.bancs.microservices.prnight;
+
+import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariConfig;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+
+@Component
+public class PRNightDBManager {
+
+    private final String url;
+    private final String username;
+    private final String password;
+    private final String driver;
+
+    private HikariDataSource dataSource;
+    private Instant lastUsedTime;
+
+    public PRNightDBManager(
+            @Value("${prnight.db.url}") String url,
+            @Value("${prnight.db.username}") String username,
+            @Value("${prnight.db.password}") String password,
+            @Value("${prnight.db.driver-class-name}") String driver
+    ) {
+        this.url = url;
+        this.username = username;
+        this.password = password;
+        this.driver = driver;
+    }
+
+    /** Lazy initialization — DB initializes only on first use */
+    public synchronized HikariDataSource getDataSource() {
+        if (dataSource == null) {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(this.url);
+            config.setUsername(this.username);
+            config.setPassword(this.password);
+            config.setDriverClassName(this.driver);
+            config.setMaximumPoolSize(5);
+            config.setPoolName("PRNightPool");
+
+            dataSource = new HikariDataSource(config);
+        }
+
+        lastUsedTime = Instant.now();
+        return dataSource;
+    }
+
+    /** Cleanup method that runs every 30 seconds */
+    @Scheduled(fixedDelay = 30000)
+    public synchronized void shutdownIfIdle() {
+
+        if (dataSource == null) return;
+
+        long idleMillis = Instant.now().toEpochMilli() - lastUsedTime.toEpochMilli();
+        if (idleMillis >= 60000) { // 1 minute idle
+            dataSource.close();
+            dataSource = null;
+            System.out.println("PRNight DB Pool shut down due to 1-minute idle");
+        }
+    }
+}
