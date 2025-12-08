@@ -1,0 +1,183 @@
+package external.prnight;
+
+import com.zaxxer.hikari.HikariDataSource;
+import javax.sql.DataSource;
+
+public class PRNightDBManager {
+
+    private HikariDataSource dataSource;
+    private long lastActivityTime = System.currentTimeMillis();
+
+    private final String url;
+    private final String username;
+    private final String password;
+    private final String driver;
+
+    public PRNightDBManager(String url, String username, String password, String driver) {
+        this.url = url;
+        this.username = username;
+        this.password = password;
+        this.driver = driver;
+    }
+
+    // Lazy Initialization
+    public synchronized DataSource getDataSource() {
+        if (dataSource == null) {
+            dataSource = new HikariDataSource();
+            dataSource.setJdbcUrl(url);
+            dataSource.setUsername(username);
+            dataSource.setPassword(password);
+            dataSource.setDriverClassName(driver);
+
+            dataSource.setPoolName("PRNightPool");
+            dataSource.setMaximumPoolSize(5);
+            dataSource.setIdleTimeout(30000);
+            dataSource.setMaxLifetime(1800000);
+
+            System.out.println("➡ PRNight DB Pool STARTED");
+        }
+
+        updateActivity();
+        return dataSource;
+    }
+
+    // Shutdown DB Pool
+    public synchronized void shutdown() {
+        if (dataSource != null) {
+            System.out.println("⛔ PRNight DB Pool SHUTDOWN");
+            dataSource.close();
+            dataSource = null;
+        }
+    }
+
+    public void updateActivity() {
+        lastActivityTime = System.currentTimeMillis();
+    }
+
+    public long getLastActivityTime() {
+        return lastActivityTime;
+    }
+}
+
+
+
+package com.tcs.bancs.microservices.config;
+
+import external.prnight.PRNightDBManager;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class PRNightBeanConfig {
+
+    @Bean
+    public PRNightDBManager prNightDBManager(
+            @Value("${prnight.datasource.url}") String url,
+            @Value("${prnight.datasource.username}") String username,
+            @Value("${prnight.datasource.password}") String password,
+            @Value("${prnight.datasource.driver-class-name}") String driver) {
+
+        return new PRNightDBManager(url, username, password, driver);
+    }
+}
+
+
+
+
+package com.tcs.bancs.microservices.config;
+
+import external.prnight.PRNightDBManager;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+@Component
+public class RequestActivityTracker {
+
+    @Autowired
+    private PRNightDBManager db;
+
+    public void updateActivity() {
+        db.updateActivity();
+    }
+}
+
+
+package com.tcs.bancs.microservices.config;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.HandlerInterceptor;
+
+@Component
+public class ActivityInterceptor implements HandlerInterceptor {
+
+    @Autowired
+    private RequestActivityTracker tracker;
+
+    @Override
+    public boolean preHandle(HttpServletRequest req, HttpServletResponse res, Object handler) {
+        tracker.updateActivity();
+        return true;
+    }
+}
+
+
+package com.tcs.bancs.microservices.config;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+    @Autowired
+    private ActivityInterceptor interceptor;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(interceptor);
+    }
+}
+
+
+package com.tcs.bancs.microservices.config;
+
+import external.prnight.PRNightDBManager;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+@Component
+public class IdleMonitor {
+
+    @Autowired
+    private PRNightDBManager db;
+
+    private static final long IDLE_LIMIT = 1 * 60 * 1000; // 1 minute
+
+    @Scheduled(fixedDelay = 30000)  // check every 30 sec
+    public void checkIdle() {
+        long now = System.currentTimeMillis();
+
+        if (db.getLastActivityTime() + IDLE_LIMIT < now) {
+            db.shutdown();
+        }
+    }
+}
+
+
+@Autowired
+PRNightDBManager prNightDBManager;
+
+public void loadNightData() throws Exception {
+
+    DataSource ds = prNightDBManager.getDataSource();
+    try (Connection con = ds.getConnection()) {
+        // Use DB here
+    }
+}
