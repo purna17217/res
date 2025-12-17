@@ -162,7 +162,44 @@ public class PRNightDBManager {
 
 
 
+private volatile boolean minimized = false;
 
+@Scheduled(fixedDelay = 30000)
+public synchronized void shutdownIfIdleForDuration() {
+    if (dataSource == null || dataSource.isClosed()) {
+        return;
+    }
+
+    HikariPoolMXBean poolMXBean = dataSource.getHikariPoolMXBean();
+    if (poolMXBean == null) {
+        return;
+    }
+
+    int active = poolMXBean.getActiveConnections();
+
+    if (active == 0) {
+        if (idleStartTime == null) {
+            idleStartTime = Instant.now();
+        } else {
+            Duration idle = Duration.between(idleStartTime, Instant.now());
+            if (!minimized && idle.compareTo(fixedDelayToMinimize) >= 0) {
+                logger.info("Minimizing DB pool");
+                dataSource.setMinimumIdle(1);
+                dataSource.setMaximumPoolSize(2);
+                poolMXBean.softEvictConnections();
+                minimized = true;
+            }
+        }
+    } else {
+        idleStartTime = null;
+        if (minimized) {
+            logger.info("Restoring DB pool");
+            dataSource.setMaximumPoolSize(maxPoolSize);
+            dataSource.setMinimumIdle(minPoolSize);
+            minimized = false;
+        }
+    }
+}
 
 
 
