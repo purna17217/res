@@ -47,7 +47,7 @@ public class PRNightDBManager {
     private long maxLifetime;
     private boolean registerMbeans;
     @Value("${prnight.datasource.fixedDelay}") 
-    private Duration fixedDelayToShutDown;
+    private Duration fixedDelayToMinimize;
     
     private volatile HikariDataSource dataSource; 
 
@@ -119,17 +119,20 @@ public class PRNightDBManager {
             if (idleStartTime == null) {
             
                 idleStartTime = Instant.now();
-                logger.info("DB pool just became fully idle. Starting {} timeout period.", fixedDelayToShutDown);
+                logger.info("DB pool just became fully idle. Starting {} timeout period.", fixedDelayToMinimize);
             } else {
               
                 Duration currentIdleDuration = Duration.between(idleStartTime, Instant.now());
                 
-                if (currentIdleDuration.compareTo(fixedDelayToShutDown) >= 0) {
+                if (currentIdleDuration.compareTo(fixedDelayToMinimize) >= 0) {
                
-                    logger.info("DB Pool shutting down after being idle for {}.", fixedDelayToShutDown);
-                    minimizeDataSource();
+                    logger.info("DB Pool re-sizing after being idle for {}.", fixedDelayToMinimize);
+                    
+                    dataSource.setMinimumIdle(1);
+                    dataSource.setMaximumPoolSize(2);
+
                 } else {
-                    logger.info("DB pool is idle, waiting for shutdown threshold ({} elapsed).", currentIdleDuration);
+                    logger.info("DB pool is idle, waiting for re-sizing threshold ({} elapsed).", currentIdleDuration);
                 }
             }
         } else {
@@ -142,17 +145,7 @@ public class PRNightDBManager {
 
     
     
-
-    public void minimizeDataSource() {
-        HikariConfig config = new HikariConfig();   
-        config.setMinimumIdle(1);       
-        config.setMaximumPoolSize(2);
-        this.dataSource = new HikariDataSource(config);
-    }
-    
-    
 }
-
 
 
 
