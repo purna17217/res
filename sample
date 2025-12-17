@@ -130,6 +130,7 @@ public class PRNightDBManager {
                     
                     dataSource.setMinimumIdle(1);
                     dataSource.setMaximumPoolSize(2);
+                    poolMXBean.softEvictConnections();
 
                 } else {
                     logger.info("DB pool is idle, waiting for re-sizing threshold ({} elapsed).", currentIdleDuration);
@@ -139,6 +140,8 @@ public class PRNightDBManager {
             if (idleStartTime != null) {
                 logger.info("DB activity detected. Resetting idle shutdown timer.");
                 idleStartTime = null;
+                dataSource.setMaximumPoolSize(this.maxPoolSize);
+                dataSource.setMinimumIdle(this.minPoolSize);
             }
         }
     }
