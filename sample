@@ -1,3 +1,242 @@
+
+public class MobileEnqService {
+
+    Logger logger = LoggerFactory.getLogger(MobileEnqService.class);
+
+    String errno = new String();
+    String customerStatus =
+            CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+
+    Properties custStatus = PropertyLoader
+            .readPropertyFile(customerStatus + "/CustomerStatus.properties");
+
+    public List<String> callMOBEnquiryChild(
+            String refno,
+            String branchno,
+            String tellerno,
+            String mobno,
+            String cifno,
+            int requestedNumberOfRecords,
+            DataSource dataSource,
+            String commonArea
+    ) throws InterruptedException, ExecutionException {
+
+        logger.info("VC------------------------MOB Enquiry Child Service Started------------------------VC {}", refno);
+
+        String lacctno = cifno == null
+                ? "00000000000000000"
+                : String.format("%017d", new BigInteger(cifno));
+
+        int numberOfRecordsToFetch = requestedNumberOfRecords > 0 ? requestedNumberOfRecords : 60;
+
+        List<CompletableFuture<ResponseData>> futures = new ArrayList<>();
+        ForkJoinPool customThreadPool = new ForkJoinPool(25);
+
+        StringBuffer allRecordsBuilder = new StringBuffer();
+        String tempFlag = "";
+        int fetchedRecordsCount = 0;
+
+        RunUnit run1 = new RunUnit();
+
+        try (Connection connection = dataSource.getConnection()) {
+
+            /* ===================== DB CONNECTION ACQUIRED ===================== */
+            logger.info(
+                    "DB-CONN-ACQUIRED | Ref={} | Thread={} | ConnHash={}",
+                    refno,
+                    Thread.currentThread().getName(),
+                    System.identityHashCode(connection)
+            );
+
+            while (fetchedRecordsCount < numberOfRecordsToFetch) {
+
+                logger.info(
+                        "ASYNC-SUBMIT | Ref={} | Thread={} | lacctno={}",
+                        refno,
+                        Thread.currentThread().getName(),
+                        lacctno
+                );
+
+                final String currentLacctno = lacctno;
+
+                CompletableFuture<ResponseData> future =
+                        CompletableFuture.supplyAsync(() -> {
+
+                            JVMMOB jvmmob = new JVMMOB();
+
+                            LsBranchNo mobinput1 = new LsBranchNo();
+                            LsTellerNo mobinput2 = new LsTellerNo();
+                            LsMobNumber mobinput3 = new LsMobNumber();
+                            LsCustomerNo mobinput4 = new LsCustomerNo();
+                            LsFunction mobinput5 = new LsFunction();
+                            LsPanNumber mobinput6 = new LsPanNumber();
+                            LsEmail mobinput7 = new LsEmail();
+                            LsRecordArea mobinput8 = new LsRecordArea();
+
+                            LsDataOut moboutput1 = new LsDataOut();
+                            LsErrorMsgNo moboutput2 = new LsErrorMsgNo();
+                            LsLastCust moboutput3 = new LsLastCust();
+                            LsLastNumCuid mobcuid = new LsLastNumCuid();
+
+                            mobinput1.setLsBranchNo(String.format("%016d", Integer.parseInt(branchno)));
+                            mobinput2.setLsTellerNo(tellerno);
+                            mobinput3.setLsMobNumber(mobno);
+                            mobinput4.setLsCustomerNo(currentLacctno);
+                            mobinput5.setLsFunction("M");
+                            mobinput6.setLsPanNumber("");
+                            mobinput7.setLsEmail("");
+                            mobcuid.setLsLastNumCuid("");
+                            mobinput8.setLsRecordArea(commonArea);
+
+                            run1.Add(jvmmob);
+
+                            /* ===================== COBOL START ===================== */
+                            long start = System.currentTimeMillis();
+                            logger.info(
+                                    "COBOL-START | Ref={} | AsyncThread={} | ConnHash={}",
+                                    refno,
+                                    Thread.currentThread().getName(),
+                                    System.identityHashCode(connection)
+                            );
+
+                            run1.Call(
+                                    "JVMMOB",
+                                    mobinput1.get_Reference(),
+                                    mobinput2.get_Reference(),
+                                    mobinput3.get_Reference(),
+                                    mobinput6.get_Reference(),
+                                    mobinput7.get_Reference(),
+                                    mobinput4.get_Reference(),
+                                    mobinput5.get_Reference(),
+                                    moboutput1.get_Reference(),
+                                    moboutput2.get_Reference(),
+                                    moboutput3.get_Reference(),
+                                    mobcuid.get_Reference(),
+                                    mobinput8.get_Reference(),
+                                    connection
+                            );
+
+                            /* ===================== COBOL END ===================== */
+                            logger.info(
+                                    "COBOL-END | Ref={} | AsyncThread={} | ConnHash={} | TimeMs={}",
+                                    refno,
+                                    Thread.currentThread().getName(),
+                                    System.identityHashCode(connection),
+                                    System.currentTimeMillis() - start
+                            );
+
+                            ResponseData responseData = new ResponseData();
+                            responseData.outResponse = moboutput1.getLsDataOut();
+                            responseData.errno = moboutput2.getLsErrorMsgNo();
+                            responseData.lacctno = moboutput3.getLsLastCust();
+
+                            return responseData;
+
+                        }, customThreadPool);
+
+                futures.add(future);
+
+                /* ===================== BLOCKING POINT ===================== */
+                ResponseData lastResult = future.get();
+
+                logger.info(
+                        "FUTURE-COMPLETED | Ref={} | Thread={} | fetchedRecords={}",
+                        refno,
+                        Thread.currentThread().getName(),
+                        fetchedRecordsCount
+                );
+
+                if (lastResult.outResponse == null || lastResult.outResponse.trim().isEmpty()) {
+                    logger.error("No outResponse from JVMMOB. Terminating process. Ref={}", refno);
+                    break;
+                }
+
+                lacctno = lastResult.lacctno;
+
+                String outResponse = lastResult.outResponse;
+                int startIndex = 0;
+
+                while (startIndex + 83 <= outResponse.length()
+                        && fetchedRecordsCount < numberOfRecordsToFetch) {
+
+                    String tempBreak = outResponse.substring(startIndex, startIndex + 83);
+                    if (tempBreak.trim().isEmpty()) {
+                        break;
+                    }
+
+                    String lastThree = tempBreak.substring(77, 80);
+                    String custDesc = custStatus.getProperty(lastThree);
+                    custDesc = (custDesc == null) ? " ".repeat(100) : custDesc;
+
+                    allRecordsBuilder.append(tempBreak).append(custDesc);
+                    startIndex += 83;
+                    fetchedRecordsCount++;
+                }
+            }
+
+            logger.info(
+                    "DB-CONN-RELEASE | Ref={} | Thread={} | ConnHash={}",
+                    refno,
+                    Thread.currentThread().getName(),
+                    System.identityHashCode(connection)
+            );
+
+            run1.close();
+            tempFlag = "Y";
+
+            logger.info(
+                    "VC------------------------Mobile Enquiry Records Fetched={}------------------------VC {}",
+                    fetchedRecordsCount,
+                    refno
+            );
+
+        } catch (SQLException e) {
+            logger.error("SQL-ERROR | Ref={}", refno, e);
+            errno = "3293";
+            tempFlag = "N";
+        }
+
+        List<String> res = new ArrayList<>();
+        res.add(allRecordsBuilder.toString());
+        res.add(String.valueOf(fetchedRecordsCount));
+
+        if ("Y".equals(tempFlag)) {
+            if (allRecordsBuilder.length() == 0 && !futures.isEmpty()) {
+                res.add(futures.get(futures.size() - 1).get().errno);
+            } else {
+                res.add("0000");
+            }
+        } else {
+            res.add(errno);
+        }
+
+        logger.info("VC------------------------MOB Enquiry Child Service Ended------------------------VC {}", refno);
+
+        customThreadPool.shutdown();
+        return res;
+    }
+
+    private class ResponseData {
+        String outResponse;
+        String errno;
+        String lacctno;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //           SBI Core Banking Project, Hyderabad, India.          *
 //*****************************************************************
 //                                                                *
