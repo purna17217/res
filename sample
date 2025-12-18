@@ -214,7 +214,17 @@ public class MobileEnqService {
 
 
 
+long start = System.currentTimeMillis();
+logger.info("COBOL-START | Thread={} | Conn={}",
+        Thread.currentThread().getName(),
+        System.identityHashCode(connection));
 
+runUnit.Call(...);
+
+logger.info("COBOL-END | Thread={} | Conn={} | Time={} ms",
+        Thread.currentThread().getName(),
+        System.identityHashCode(connection),
+        System.currentTimeMillis() - start);
 
 
 
