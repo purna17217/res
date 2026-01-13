@@ -1,0 +1,154 @@
+Database Connection Contention Under High Traffic
+
+Executive Summary
+
+During high-traffic scenarios, the application experienced database connection exhaustion and prolonged connection holding, leading to throughput degradation and increased response times. A detailed analysis using VisualVM revealed that the root cause was the combined effect of DBIO usage in COBOL integration and ForkJoinPool–based parallelism.
+
+By replacing DBIO with direct SQL execution and removing ForkJoinPool, the application demonstrated significantly improved connection acquisition and release behavior, resulting in stable throughput and predictable performance under load.
+
+
+---
+
+Problem Statement
+
+Under peak load conditions:
+
+Database connections were getting held for longer durations
+
+Connection pool reached max capacity quickly
+
+Incoming requests were blocked or timed out
+
+Overall TPS plateaued or dropped despite increased traffic
+
+
+This behavior was consistently reproducible during load testing.
+
+
+---
+
+Observations from Monitoring (VisualVM)
+
+Using VisualVM, the following patterns were observed during high traffic:
+
+High number of active threads waiting for DB connections
+
+Increased blocked and waiting thread states
+
+Slow decline in active DB connections after traffic reduced
+
+ForkJoinPool worker threads holding DB connections longer than expected
+
+
+These indicators confirmed connection contention rather than CPU or memory bottlenecks.
+
+
+---
+
+Root Cause Analysis
+
+1. DBIO Usage in COBOL Integration
+
+DBIO abstracts database operations but introduces implicit connection lifecycle handling
+
+Under high concurrency, DBIO calls resulted in:
+
+Delayed connection release
+
+Longer DB I/O hold times
+
+Reduced pool availability
+
+
+
+2. ForkJoinPool Parallelism
+
+ForkJoinPool is optimized for CPU-bound tasks, not I/O-bound DB operations
+
+DB calls executed inside ForkJoinPool threads caused:
+
+Threads waiting on I/O while holding DB connections
+
+Connection starvation for other requests
+
+Amplified contention during traffic spikes
+
+
+
+The combination of DBIO + ForkJoinPool significantly worsened DB pool utilization.
+
+
+---
+
+Solution Implemented
+
+✅ Replaced DBIO with Direct SQL Queries
+
+Explicit SQL execution provided:
+
+Better control over connection lifecycle
+
+Faster execution paths
+
+Predictable connection release
+
+
+
+✅ Removed ForkJoinPool for DB Operations
+
+DB calls were moved to a controlled execution model
+
+Eliminated parallel DB access patterns that were unsuitable for limited DB pools
+
+Ensured threads do not block while holding connections
+
+
+
+---
+
+Results After Optimization
+
+Post-change validation using VisualVM and load testing showed:
+
+Faster DB connection acquisition and release
+
+Reduced blocked/waiting thread counts
+
+Stable DB pool utilization even under high traffic
+
+Improved and consistent throughput
+
+Predictable system behavior during peak load
+
+
+The VisualVM graphs clearly showed smoother connection usage curves with no prolonged saturation.
+
+
+---
+
+Key Takeaways
+
+ForkJoinPool should not be used for DB I/O–intensive operations
+
+Abstracted DB layers like DBIO can hide connection lifecycle issues under load
+
+Explicit SQL with controlled threading offers better performance predictability
+
+Proper tooling (VisualVM) is critical for identifying real bottlenecks
+
+
+
+---
+
+Recommendation
+
+For production systems with limited DB connections and high traffic:
+
+Avoid CPU-optimized thread pools for I/O workloads
+
+Prefer explicit and controlled DB access patterns
+
+Continuously monitor connection pool metrics during load tests
+
+
+These practices ensure scalable, stable, and production-ready performance.
