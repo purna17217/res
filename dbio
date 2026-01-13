@@ -350,3 +350,238 @@ Continuously monitor connection pool metrics during load tests
 
 
 These practices ensure scalable, stable, and production-ready performance.
+
+
+
+
+
+
+
+
+
+
+Database Connection Contention Under High Traffic
+
+Executive Summary
+
+During high-traffic scenarios, the application experienced database connection exhaustion and prolonged connection holding, leading to throughput degradation and increased response times. A detailed analysis using VisualVM revealed that the root cause was the combined effect of DBIO usage in COBOL integration and ForkJoinPool–based parallelism.
+
+By replacing DBIO with direct SQL execution and removing ForkJoinPool, the application demonstrated significantly improved connection acquisition and release behavior, resulting in stable throughput and predictable performance under load.
+
+
+---
+
+Problem Statement
+
+Under peak load conditions:
+
+Database connections were getting held for longer durations
+
+Connection pool reached max capacity quickly
+
+Incoming requests were blocked or timed out
+
+Overall TPS plateaued or dropped despite increased traffic
+
+
+This behavior was consistently reproducible during load testing.
+
+
+---
+
+Observations from Monitoring (VisualVM)
+
+During load execution, VisualVM monitoring was used alongside JMeter (bzm Concurrency Thread Group) results to correlate application behavior with traffic patterns.
+
+JMeter Load Characteristics (Based on Attached Screenshots)
+
+Load was generated using bzm Concurrency Thread Group
+
+Gradual ramp-up of concurrent users to simulate production traffic
+
+Observed metrics included:
+
+Transactions Per Second (TPS)
+
+Active Threads (Concurrency)
+
+Response time trends
+
+
+
+As concurrency increased, TPS initially scaled linearly but later plateaued, indicating a backend bottleneck rather than a load-generation limitation.
+
+VisualVM Indicators (Before Fix)
+
+From the attached VisualVM screenshots, the following were observed:
+
+DB connection pool consistently reaching maximum limit
+
+Increased number of blocked and waiting threads
+
+ForkJoinPool worker threads holding DB connections for extended durations
+
+Slow recovery of DB connections even after traffic stabilized
+
+
+These indicators clearly pointed to DB connection contention under high concurrency rather than CPU or memory saturation, confirming the database layer as the primary bottleneck.
+
+
+---
+
+Root Cause Analysis
+
+1. DBIO Usage in COBOL Integration
+
+DBIO abstracts database operations but introduces implicit connection lifecycle handling
+
+Under high concurrency, DBIO calls resulted in:
+
+Delayed connection release
+
+Longer DB I/O hold times
+
+Reduced pool availability
+
+
+
+2. ForkJoinPool Parallelism
+
+ForkJoinPool is optimized for CPU-bound tasks, not I/O-bound DB operations
+
+DB calls executed inside ForkJoinPool threads caused:
+
+Threads waiting on I/O while holding DB connections
+
+Connection starvation for other requests
+
+Amplified contention during traffic spikes
+
+
+
+The combination of DBIO + ForkJoinPool significantly worsened DB pool utilization.
+
+
+---
+
+Solution Implemented
+
+✅ Replaced DBIO with Direct SQL Queries
+
+Explicit SQL execution provided:
+
+Better control over connection lifecycle
+
+Faster execution paths
+
+Predictable connection release
+
+
+
+✅ Removed ForkJoinPool for DB Operations
+
+DB calls were moved to a controlled execution model
+
+Eliminated parallel DB access patterns that were unsuitable for limited DB pools
+
+Ensured threads do not block while holding connections
+
+
+
+---
+
+Before vs After Analysis (VisualVM Evidence)
+
+Before Optimization (With DBIO + ForkJoinPool)
+
+Based on the first attached VisualVM screenshot:
+
+ActiveConnections rapidly climbed to the maximum limit (~30) and stayed saturated for long durations
+
+IdleConnections remained close to zero, indicating the pool had no free capacity
+
+ThreadsAwaitingConnection showed sustained high values (10–20 threads), proving that application threads were blocked waiting for DB connections
+
+Even after traffic stabilized, connections were not released promptly, leading to prolonged contention
+
+
+This clearly demonstrates that DB connections were being held longer than necessary, causing thread starvation and throughput degradation under high load.
+
+
+---
+
+After Optimization (DBIO Removed + ForkJoinPool Eliminated)
+
+Based on the second attached VisualVM screenshot:
+
+ActiveConnections still reached peak values but showed faster drop-off and recovery
+
+IdleConnections increased during steady-state and post-load phases, confirming timely connection release
+
+ThreadsAwaitingConnection reduced significantly and stabilized at lower values
+
+The DB pool recovered quickly once traffic reduced, with no prolonged saturation
+
+
+This confirms that DB connection lifecycle handling became more efficient and predictable after the changes.
+
+
+---
+
+Results After Optimization
+
+Post-implementation validation was performed using the same JMeter bzm Concurrency Thread Group configuration and monitored via VisualVM, ensuring an apples-to-apples comparison.
+
+JMeter Results (After Fix)
+
+TPS scaled more predictably with increasing concurrency
+
+Reduced variance in response times under sustained load
+
+No abrupt TPS drops during high traffic phases
+
+
+VisualVM Indicators (After Fix)
+
+Based on the attached VisualVM screenshots after the changes:
+
+DB connections were acquired and released smoothly
+
+Significant reduction in blocked and waiting thread states
+
+ForkJoinPool–related thread contention eliminated
+
+DB pool recovered quickly after peak load
+
+
+The VisualVM graphs clearly showed stable and evenly distributed DB connection usage, with no prolonged saturation even under high traffic.
+
+
+---
+
+Key Takeaways
+
+ForkJoinPool should not be used for DB I/O–intensive operations
+
+Abstracted DB layers like DBIO can hide connection lifecycle issues under load
+
+Explicit SQL with controlled threading offers better performance predictability
+
+Proper tooling (VisualVM) is critical for identifying real bottlenecks
+
+
+
+---
+
+Recommendation
+
+For production systems with limited DB connections and high traffic:
+
+Avoid CPU-optimized thread pools for I/O workloads
+
+Prefer explicit and controlled DB access patterns
+
+Continuously monitor connection pool metrics during load tests
+
+
+These practices ensure scalable, stable, and production-ready performance.
