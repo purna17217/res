@@ -1,587 +1,882 @@
-Database Connection Contention Under High Traffic
+public class MobileEnqService {
+	
+	Logger logger = LoggerFactory.getLogger(MobileEnqService.class);
+	Connection connection;
+	String errno = new String();
+	String customerStatus = CacheConfig.frameworkConfigProperties.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	Properties custStatus = PropertyLoader
+			.readPropertyFile(new String(customerStatus + "/CustomerStatus.properties"));
+	
+	public List<String> callMOBEnquiryChild( String refno,String branchno, String tellerno, String mobno, String cifno, int requestedNumberOfRecords,DataSource dataSource,String commonArea) throws InterruptedException, ExecutionException {
+		
+		logger.info("VC------------------------MOB Enquiry Child Service Started WithOut ForkJoinPool------------------------VC "+refno);
+
+		long serviceStart = System.currentTimeMillis();
+		
+		String lacctno = cifno == null ? "00000000000000000" : String.format("%017d", new BigInteger(cifno));
+		
+        int numberOfRecordsToFetch = requestedNumberOfRecords > 0 ? requestedNumberOfRecords : 60;       
+        int index = 0;       
+        StringBuilder allRecordsBuilder = new StringBuilder();
+   	    String tempFlag = "";
+        try (Connection connection = dataSource.getConnection();RunUnit run1 = new RunUnit())
+        {
+        	
+        	long connTime =System.currentTimeMillis()-serviceStart;
+        	
+        	if(connTime>20)
+        	{
+        		
+        		/* ===================== SLOW DB CONNECTION ===================== */
+        		logger.warn("SLOW-DB-CONN | Ref={} | TimeMs={} ",refno,connTime);
+        	}
+        	else
+        	{
+        		/* ===================== DB CONNECTION ACQUIRED ===================== */
+                logger.info(
+                        "DB-CONN-ACQUIRED | Ref={} | Thread={} | ConnHash={}",
+                        refno,
+                        Thread.currentThread().getName(),
+                        System.identityHashCode(connection)
+                );
+        	}
+        	
+        	
+        
+                	
+            
+        	  	JVMMOB jvmmob = new JVMMOB();
+        	  	LsRefNo         mobref      = new LsRefNo();
+            	LsBranchNo  	mobinput1	= new LsBranchNo();
+            	LsTellerNo	    mobinput2	= new LsTellerNo();
+                LsMobNumber 	mobinput3 	= new LsMobNumber();
+                LsCustomerNo    mobinput4	= new LsCustomerNo();
+                LsFunction	    mobinput5	= new LsFunction();
+				
+                LsPanNumber     mobinput6   = new LsPanNumber();
+                LsEmail         mobinput7   = new LsEmail();
+                LsRecordArea    mobinput8   = new LsRecordArea();
+                LsDataOut 	    moboutput1 	= new LsDataOut();
+                LsErrorMsgNo    moboutput2 	= new LsErrorMsgNo();
+                LsLastCust      moboutput3 	= new LsLastCust();
+                LsLastNumCuid	mobcuid		= new LsLastNumCuid();
+                mobinput2.setLsTellerNo(tellerno);
+                mobinput1.setLsBranchNo(String.format("%016d", Integer.parseInt(branchno)));  
+                mobinput3.setLsMobNumber(mobno);
+                mobinput4.setLsCustomerNo(lacctno);
+                mobinput5.setLsFunction("M");
+                mobinput6.setLsPanNumber("");
+                mobinput7.setLsEmail("");
+                mobcuid.setLsLastNumCuid("");
+                mobinput8.setLsRecordArea(commonArea);
+                mobref.setLsRefNo(refno);
+                
+               
+                
+//                try (RunUnit run1 = new RunUnit())
+//                {
+                run1.Add(jvmmob);
+                
+                /* ===================== COBOL START ===================== */
+                long start = System.currentTimeMillis();
+                logger.info(
+                        "COBOL-START | Ref={} | AsyncThread={} | ConnHash={}",
+                        refno,
+                        Thread.currentThread().getName(),
+                        System.identityHashCode(connection)
+                );
+                
+             // Call the JVMAVBL service
+                run1.Call("JVMMOB",mobref.get_Reference(), mobinput1.get_Reference(), mobinput2.get_Reference(), mobinput3.get_Reference(),mobinput6.get_Reference(),mobinput7.get_Reference(), mobinput4.get_Reference(),mobinput5.get_Reference(), moboutput1.get_Reference(), moboutput2.get_Reference(), moboutput3.get_Reference(),mobcuid.get_Reference(), mobinput8.get_Reference(),connection );
+                /* ===================== COBOL END ===================== */
+                logger.info(
+                        "COBOL-END | Ref={} | AsyncThread={} | ConnHash={} | TimeMs={}",
+                        refno,
+                        Thread.currentThread().getName(),
+                        System.identityHashCode(connection),
+                        System.currentTimeMillis() - start
+                );
+         
+		//} 
+//                catch (Exception e) 
+//        {
+//			logger.info("Error in using RunUnit");
+//		}
+          
+            
+                
+              if(numberOfRecordsToFetch!=0)
+              {
+            	  while (index < numberOfRecordsToFetch) {
+                      
+                      String outPutRes = moboutput1.getLsDataOutArray(index);
+                      if(outPutRes==null||outPutRes.trim().isEmpty())
+                      {
+                      	break;
+                      }
+                      String lastThree = outPutRes.substring(77,80);
+                      String custDesc = custStatus.getProperty(lastThree);
+                      custDesc = (custDesc==null) ? " ".repeat(100) : custDesc;
+                      allRecordsBuilder.append(outPutRes.substring(0, 83)+custDesc);
+                      index++;
+                  }
+              }
+              
+               
+            
+        
+       
+        tempFlag = "Y";
+        
+        logger.info("VC------------------------Mobile Enquiry Service no of records fetched : " +index+" ------------------------VC " + refno);
+    } 
+        
+        catch (SQLException e)
+        {
+        	errno = "3293";
+        	tempFlag = "N";
+        } 
+
+        List<String> res = new ArrayList<>();
+        res.add(allRecordsBuilder.toString()); 
+        res.add(String.valueOf(index)); 
+        if("Y".equals(tempFlag))
+        {
+        		res.add("0000");
+        }
+        else
+        {
+        	res.add(errno);
+        }
+
+        logger.info("VC------------------------MOB Enquiry Child Service Ended WithOut ForkJoinPool------------------------VC "+refno);
+
+		
+        return res;
+        
+        
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@RestController
+@Api(value = "Aggregation_API", description = " ", tags = { "Aggregation API" })
+@RequestMapping("/")
+@Cacheable
+@CacheEvict
+public class PFMOBEnquiryService {
+
+//////////////////////////////////////////////////////////////////////////--------ENV VARIABLES STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	@Autowired
+	AggregationServiceImpl aggregationServiceImpl;
+
+	@Autowired
+	MigenqDetailsRepositoryImpl migDetails;
+	
+	@Autowired
+	TelmDetailDayRepo telmRepo;
+	
+	
+	@Autowired
+	BrhmDetailDayRepo brhmRepo;
+	
+	@Autowired
+	Ig01DetailDayRepo ig01DeatilDayRepo;
+	
+	@Autowired
+	CrddDetailDayRepo crddDetailDayRepo;
+	
+	@Autowired
+	DBProcess dbProcess;
+
+	@Value("${UTENVCALS-BANCS-TRACE-STATE}")
+	private String bancsTraceState;
+
+	@Value("${UTENVCALS-MASTER-DQPTYPE}")
+	private String masterDQType;
+
+	@Value("${UTENVCALS-BANCS-HOST}")
+	private String bancsHost;
+
+	@Value("${UTENVCALS-FNS-SYSNUM}")
+	private String fnsSysnum;
+
+	@Value("${UTENVCALS-CTRL-SYSNUM}")
+	private String ctrlSysnum;
+
+	@Value("${UTENVCALS-DAY-SYSNUM}")
+	private String daySysnum;
+
+	@Value("${UTENVCALS-NIGHT-SYSNUM}")
+	private String nightSysnum;
+
+	@Value("${UTENVCALS-NON24H-SYSNUM}")
+	private String non24hsum;
+
+	@Value("${UTENVCALS-DEF-RMODE}")
+	private String defRMode;
+
+	@Value("${UTENVCALS-MASTER-DB}")
+	private String masterDB;
+	
+	@Value("${UTENVCALS-MASTER-DB-1}")
+	private String masterDB1;
+
+	@Value("${UTENVCALS-MASTER-DB-2}")
+	private String masterDB2;
+
+	@Value("${UTENVCALS-PRMASTER-DB}")
+	private String masterPRDB;
+	
+	@Value("${UTENVCALS-SERVICES-FLAG}")
+	private String servicesFlag;
+
+	@Value("${VC-MS-SERVICE-ID}")
+	private String serviceid;
+	
+	@Value("${pf.response.outline.location}")
+	private String PF_RES_FILE_PATH;
+	
+	@Value("${mob.response.outline.location}")
+	private String MOB_RES_FILE_PATH;
+		
+	@Value("${UTENVCALS-INSPARAM-FLAG}")
+	private String INSPARAM_FLAG;
+	
+	@Value("${UTENVCALS-INSPARAM-VALUE}")
+	private String INSPARAM_VALUE;
+	
+	@Value("${UTENVCALS-DEF-RMODE}")
+    private String dbmode;
+	
+	@Autowired
+	@Qualifier("dayDataSource")
+	private DataSource dayDataSource;
+	 
+	
+//////////////////////////////////////////////////////////////////////////--------ENV VARIABLES ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+	Logger logger = LoggerFactory.getLogger(PFMOBEnquiryService.class);
+	
+//////////////////////////////////////////////////////////////////////////--------PATH FILES READING STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	String ErrorCodeMasterFilePath = CacheConfig.frameworkConfigProperties
+			.getProperty(FrameworkConstants.LOOKUP_FILES_PATH);
+	Properties error = PropertyLoader
+			.readPropertyFile(new String(ErrorCodeMasterFilePath + "/ErrorCodeMaster.properties"));
+//////////////////////////////////////////////////////////////////////////--------PATH FILES READING ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	
+	private final Response responseObj;
+
+	@Autowired
+	public PFMOBEnquiryService(Response responseObj) {
+		
+		this.responseObj = responseObj;
+	}
+	
+	@InitBinder
+	public void initBinder(WebDataBinder binder) {
+		binder.setDisallowedFields(new String[] {});
+	}
+	
+//////////////////////////////////////////////////////////////////////////-------- OBJECTS CREATION STARTED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	
+	ErrorResponse 				errobj 		= new ErrorResponse();
+	Error_Description 			errdesc 	= new Error_Description();
+	PFEnquiryService_Child 		pfchild 	= new PFEnquiryService_Child();
+	MobileEnqService            mobchild1   = new MobileEnqService();
+	PanEnqService               panchild    = new PanEnqService();
+	EmailEnqService             emailchild  = new EmailEnqService();
+	
+	Validate_RefNum             refNum      = new Validate_RefNum();
+	Validate_Teller             tellerNum   = new Validate_Teller();
+	Validate_Branch             branchNum   = new Validate_Branch();
+	Validate_OptionCode         optionCode  = new Validate_OptionCode();
+	Validate_PFNumber           pfNum       = new Validate_PFNumber();
+	Validate_MobileNumber       mobNum      = new Validate_MobileNumber();
+	Validate_PanNumber          panNum      = new Validate_PanNumber();
+	Validate_Email              emailId     = new Validate_Email();
+	Validate_CIFNumber          cifNum      = new Validate_CIFNumber();
+	Validate_RecordCount        recCount    = new Validate_RecordCount();
+	Validate_LastRow            lastRow     = new Validate_LastRow();
+	Gson gson = new Gson();
+	
+	
+	
+//////////////////////////////////////////////////////////////////////////-------- OBJECTS CREATION ENDED--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+
+	@SuppressWarnings({ "unchecked", "rawtypes"})
+	@ApiOperation(value = "Call PFMOB", notes = "PFMOB Service:This API is used to fetch Customer Details.")
+	@PostMapping(value = { "/RCA_PFMOBEnq" }, produces = { "application/json" })
+	@CrossOrigin()
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	@Validated
+	public ResponseEntity<Object> getCustomerDetails(@RequestBody(required = false) @Valid RequestBean_PFMOB reqbean,
+			HttpServletRequest request, @RequestHeader HttpHeaders headers, HttpServletResponse response) throws Exception {
+ 
+		
+		response.setHeader("X-Content-Type-Options", "nosniff");
+		response.setHeader("X-Frame-Options", "DENY");
+		response.setHeader("Content-Security-Policy", "default-src 'self'");
+		response.setHeader("X-XSS-Protection", "1;mode=block");
+		response.setHeader("Cache-control", "no-cache,no-store");
+		
+//////////////////////////////////////////////////////////////////////////-------- INITIAL VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		
+		String IPAddress = request.getHeader("X-Forwarded-For");
+		String remoteAddress = request.getRemoteAddr();
+		String accept = request.getHeader("Content-Type");
+		DateTimeFormatter entryDate1 = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss:SSS");
+		LocalDateTime time = LocalDateTime.now();
+		String entryDate = entryDate1.format(time);
+		
+//////////////////////////////////////////////////////////////////////////-------- SERVICE VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		String reqbeanstr = new String();
+		String finalResponse = new String();
+		String res_file_path = new String();
+		String refno = new String();
+		String tellerno = new String();
+		String branchno = new String();
+		String option_code = new String();
+		String pfno = new String();
+		String noOfRecords = new String();
+		String cifno = new String();
+		String mobno = new String();
+		String panno = new String();
+		String emailid = new String();
+		String chkderr = new String();
+		String sourceId  = new String();
+		String validChkdFlag = new String();
+		List<String> chkdRes = new ArrayList<>();
+		String out_response = new String();
+		String errno = new String();
+		String errDesc = new String();
+		List<String> errList = new ArrayList<>();
+		DataSource dataSource = getDataSource("day");
+		List<Telm> telm = new ArrayList<Telm>();
+		List<Brhm> brhm = new ArrayList<Brhm>();
+		List<Ig01> signonDate = new ArrayList<Ig01>();
+		List<Crdd> crdd = new ArrayList<Crdd>();
+		String sigonTelmDate = new String();
+		String teller_identifier = new String();
+		String stat = new String();
+		String sign_on_flag= new String();
+		String formattedTeller = new String();
+		String formattedBranch = new String();
+		String formattedCardFileForCrdd =  new String();
+		String formattedTellerForCrdd=  new String();
+		String formatTellerRemoveZeros=  new String();		
+		String Ig01date = new String();
+		boolean allowTellerFlag = false;
+		boolean allowBranchFlag = false;
+		boolean isValidTeller = true;
+//////////////////////////////////////////////////////////////////////////-------- ENV VARIABLES--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+		
+		String callcode = "S";
+		String opt = "";
+		List<String> res = new ArrayList<String>();
+		String formattedmasterDB1 = StringUtils.rightPad(masterDB1, 15);
+		String formattedmasterDB2 = StringUtils.rightPad(masterDB2, 15);
+		String lsRecArea = bancsTraceState.trim() + masterDQType.trim() + bancsHost.trim() + fnsSysnum.trim()
+				+ ctrlSysnum.trim() + daySysnum.trim() + nightSysnum.trim() + non24hsum.trim() + defRMode.trim()
+				+ formattedmasterDB1 + formattedmasterDB2 + servicesFlag.trim()+ INSPARAM_FLAG.trim() + INSPARAM_VALUE.trim();
+//////////////////////////////////////////////////////////////////////////-------- INPUT VALIDATIONS--------\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	   try {
+		if(reqbean != null) {
+	    	
+	    	if(!reqbean.isEmpty()){
+	    	reqbeanstr = gson.toJson(reqbean).toString();
+	    	refno	    =  reqbean.getReferenceNumber();
+	    	tellerno = reqbean.getTellerNumber();
+	    	branchno = reqbean.getBranchNumber();
+	    	option_code = reqbean.getOption();
+		    errList  =  refNum.validateRefNum(refno);
+		    logger.info("VC------------------------Successfully read application.properties------------------------VC "+refno);
+		    errno = errList.get(1);
+		    refno = errList.get(0);
+		    if(!errno.equals("00000")) {			
+		    errDesc = error.getProperty(errno);
+			finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+			migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+			return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			errList = tellerNum.validateTellerNum(refno,tellerno);
+		    errno = errList.get(1);
+		    tellerno = errList.get(0);
+			if (!errno.equals("00000")) {
+
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			
+			errList = branchNum.validateBranchNum(refno,branchno);
+		    errno = errList.get(1);
+		    branchno = errList.get(0);
+			if (!errno.equals("00000")) {
+
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+			errList = optionCode.validateOptionCode(refno,option_code);
+		    errno = errList.get(1);
+		    option_code = errList.get(0);
+			if (!errno.equals("00000")) {
+
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+			if ("F".equalsIgnoreCase(option_code)) {
+
+				pfno = reqbean.getRequestData();
+				errList = pfNum.validatePFNum(refno,pfno);
+			    errno = errList.get(1);
+			    pfno = errList.get(0);
+				res_file_path = PF_RES_FILE_PATH;
+						
+				if (!errno.equals("00000")) {
+
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				}
+			
+			logger.info("VC------------------------Fetched PF_RES_FILE_PATH------------------------VC "+refno);
+			} else if ("M".equalsIgnoreCase(option_code)) {
+				mobno = reqbean.getRequestData();
+				errList = mobNum.validateMobileNum(refno,mobno);
+			    errno = errList.get(1);
+			    mobno = errList.get(0);
+				res_file_path = MOB_RES_FILE_PATH;
+						
+				if (!errno.equals("00000")) {
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				}
+			logger.info("VC------------------------Fetched MOB_RES_FILE_PATH------------------------VC "+refno);
+			} 
+			else if ("P".equalsIgnoreCase(option_code)) {
+				panno = reqbean.getRequestData();
+				errList = panNum.validatePanNum(refno,panno);
+			    errno = errList.get(1);
+			    panno = errList.get(0);
+				res_file_path = MOB_RES_FILE_PATH;
+						
+				if (!errno.equals("00000")) {
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				}
+			logger.info("VC------------------------Fetched PAN_RES_FILE_PATH------------------------VC "+refno);
+			
+			}
+			 else if ("E".equalsIgnoreCase(option_code)) {
+					emailid = reqbean.getRequestData();
+					errList = emailId.validateEmailId(refno,emailid);
+				    errno = errList.get(1);
+				    emailid = errList.get(0);
+					res_file_path = MOB_RES_FILE_PATH;
+							
+					if (!errno.equals("00000")) {
+						errDesc = error.getProperty(errno);
+						finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+						migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+						return new ResponseEntity(finalResponse, HttpStatus.OK);
+					}
+				logger.info("VC------------------------Fetched EMAIL_RES_FILE_PATH------------------------VC "+refno);
+			 }
+			else {
+				errno = "CB426";
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+
+			cifno = reqbean.getCIFNumber();
+			chkdRes = cifNum.validateCIFNumber(refno,cifno);
+			errno = chkdRes.get(1);
+			if (!errno.equals("00000")) {
+				if (errno.equals("6240")) {
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				} else {
+					chkderr = errno;
+					validChkdFlag = "N";
+				}
+			} else {
+				cifno = chkdRes.get(0);
+				validChkdFlag = "Y";
+			}
+			String requestedNoOfRecords = reqbean.getRecordCount();
+		    errList = recCount.validateRecordCount(refno,requestedNoOfRecords);	    
+		    requestedNoOfRecords = errList.get(0);
+		    errno = errList.get(1);
+			if (!errno.equals("00000")) {
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+		    
+		    String lastrow = reqbean.getLastRow();
+		    errList = lastRow.validateLastRow(refno,lastrow);	    
+		    lastrow = errList.get(0);
+		    errno = errList.get(1);
+			if (!errno.equals("00000")) {
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}			
+			
+            logger.info("VC------------------------Initiating DB Pooling------------------------VC "+refno);
+			if (accept != null && accept.contains("application/json")) {
+				if (validChkdFlag.equals("Y")) {
+				
+				logger.info(
+						"VC------------------------Intiating Teller&Branch Validation------------------------VC "
+								+ refno);
+				ArrayList<Object> queryParamsTlr = new ArrayList<>();
+				ArrayList<Object> queryParamsBrhm = new ArrayList<>();
+				ArrayList<Object> queryParamsSignonDate = new ArrayList<>();
+				ArrayList<Object> queryParamsCrddTeller = new ArrayList<>();
+				queryParamsTlr.add("003");
+				formattedTeller = StringUtils.leftPad(tellerno, 16, "0");
+				queryParamsTlr.add(formattedTeller);
+
+				formattedBranch = "003" + StringUtils.leftPad(branchno, 16, "0");
+				queryParamsBrhm.add(formattedBranch);
+
+				queryParamsSignonDate.add("000");
+
+				// For CRDD Teller Check
+				String tempString = "BYPASS_TLM.card";
+				formattedCardFileForCrdd = String.format("%-30s", tempString);
+				formatTellerRemoveZeros = tellerno.replaceAll("^0+(?!$)", "");
+				formattedTellerForCrdd = String.format("%-299s", formatTellerRemoveZeros);
+
+				queryParamsCrddTeller.add(formattedCardFileForCrdd);
+				queryParamsCrddTeller.add(formattedTellerForCrdd);
+
+				try {
+					crdd = crddDetailDayRepo.findByCrddDetails(formattedCardFileForCrdd,formattedTellerForCrdd);
+					brhm = brhmRepo.findByBrhmDetails(formattedBranch);
+					signonDate = ig01DeatilDayRepo.findByIg01Details("000");
+					DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+					DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("ddMMyyyy");
+					LocalDate date = LocalDate.parse(signonDate.get(0).getCntldate(), inputFormatter);
+					String dateStringDDMMYYYY = date.format(outputFormatter);
+					Ig01date = dateStringDDMMYYYY;
+
+				} catch (RuntimeException e1) {
+					// TODO Auto-generated catch block
+					logger.info("Exception Occured at CRDD and BRHM Check " + refno );
+					errno = "3293";
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);				
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);						
+					}
+
+				if (crdd != null && !crdd.isEmpty()) {
+
+					if (formatTellerRemoveZeros.equals(crdd.get(0).getVALUE().trim())) {
+
+						logger.info("VC------------------------Virtual Teller Based on CRDD Value Validated Sucessfully------------------------VC "+ refno);
+
+						allowTellerFlag = true;
+
+					}
+
+				}
+
+				else {
+
+					try {
+						telm = telmRepo.findByTelmDetails("003", formattedTeller);
+						signonDate = ig01DeatilDayRepo.findByIg01Details("000");
+						DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+						LocalDate date = LocalDate.parse(signonDate.get(0).getCntldate(), inputFormatter);
+						DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("ddMMyyyy");
+						String ddmmyyyy = date.format(outputFormatter);
+						Ig01date = ddmmyyyy;
+					} catch (RuntimeException e) {
+						logger.info("Exception Occured at TELM " + refno );
+						errno = "3293";
+						errDesc = error.getProperty(errno);
+						finalResponse = errobj.getErrorResponse(errno, errDesc, refno);				
+						migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+						return new ResponseEntity(finalResponse, HttpStatus.OK);
+					
+					}
+
+					if (telm != null && !telm.isEmpty()) {
+						sign_on_flag = telm.get(0).getSIGNON_FLAG();
+						teller_identifier = telm.get(0).getTELLER_IDENTIFIER();
+						sigonTelmDate = telm.get(0).getSIGN_ON_DATE();
+						stat = telm.get(0).getSTAT();
+						if ("Y".equals(teller_identifier)) 
+						{
+							logger.info("VC------------------------Virtual Teller Based On Teller Identifier Validated Sucessfully------------------------VC "+ refno);
+							allowTellerFlag = true;
+						}
+
+						else if ("Y".equals(sign_on_flag) && "01".equals(stat) && Objects.equals(sigonTelmDate, Ig01date)) {
+							logger.info("VC------------------------Teller Validated Sucessfully------------------------VC "+ refno);
+
+							allowTellerFlag = true;
+						}
+
+						else {
+							allowTellerFlag = false;
+						}
+					}
+
+					else {
+
+						isValidTeller = false;
+					}
+
+				}
+
+				if (brhm != null && !brhm.isEmpty()) {
+					allowBranchFlag = true;
+					logger.info("VC-------------- Branch Validated Sucessfully --------------VC "+refno);
+					
+				} else {
+					allowBranchFlag = false;
+				}
+
+				if (isValidTeller)
+				{
+					if (allowTellerFlag)
+					{
+						if (allowBranchFlag) 
+						{
+							 
+							 logger.info("VC------------------------Region Mode check ended------------------------VC "+ refno);
+							 if ("F".equalsIgnoreCase(option_code)) {
+
+									logger.info(
+											"VC------------------------Validated PF Option_Code------------------------VC "+refno);
+									res = pfchild.callPFEnquiryChild(refno,branchno, tellerno, pfno, cifno, Integer.parseInt(requestedNoOfRecords), lastrow,dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+
+								} else if ("M".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated Mobile Option_Code------------------------VC " + refno);
+
+									res = mobchild1.callMOBEnquiryChild(refno, branchno, tellerno, mobno, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								else if ("P".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated PAN Option_Code------------------------VC "+refno);
+
+									res = panchild.callPANEnquiryChild(refno ,branchno, tellerno, panno, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+								else if("E".equalsIgnoreCase(option_code)) {
+									logger.info(
+											"VC------------------------Validated EmailID Option_Code------------------------VC "+refno);
+
+									res = emailchild.callEMAILEnquiryChild(refno,branchno, tellerno, emailid, cifno, Integer.parseInt(requestedNoOfRecords),dataSource,lsRecArea);
+									out_response = res.get(0);
+									noOfRecords = res.get(1);
+									logger.info("VC------------------------Fetched NO_OF_RECORDS------------------------VC " + noOfRecords);
+									errno = res.get(2);
+									logger.info("VC------------------------Fetched ERROR_NUMBER------------------------VC " + errno);
+									
+								}
+						}
+						else
+						{
+							
+								 logger.info("VC--------------INVALID BRANCH NUMBER--------------VC "+refno);
+								 errno = "0526";
+								 errDesc = error.getProperty(errno);
+								 finalResponse =errobj.getErrorResponse(errno, errDesc, refno);
+								 migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.
+								 toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate,
+								 IPAddress, errno, errDesc, "1",
+								 Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+								 return new ResponseEntity(finalResponse, HttpStatus.OK); 
+								 
+						}
+								 			 
+						
+					} else {
+						
+						 logger.info("VC--------------USER NOT SIGNED ON--------------VC "+refno);
+						 errno = "0148"; 
+						 errDesc = error.getProperty(errno);
+						 finalResponse =errobj.getErrorResponse(errno, errDesc, refno);
+						 migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.
+						 toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate,
+						 IPAddress, errno, errDesc, "1",
+						 Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+						 return new ResponseEntity(finalResponse, HttpStatus.OK);
+						
+					}
+				} else {
+					logger.info("VC--------------INVALID TELLER NUMBER--------------VC " + refno);
+					errno = "0529";
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(
+							Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()),
+							remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1",
+							Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure");
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+				}
+
+			}
+				else {
+					  errno = chkderr;
+					  try(Connection connection = dataSource.getConnection()) {	
+							errDesc = errdesc.getCbsErrDesc(chkderr, callcode, opt, lsRecArea, connection);
+							}
+					  catch(SQLException e) {
+						    errno = "3293";
+							errDesc = error.getProperty(errno);
+							finalResponse = errobj.getErrorResponse(errno, errDesc, refno);				
+							migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+							return new ResponseEntity(finalResponse, HttpStatus.OK);
+					  }
+					  finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+						migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					  return new ResponseEntity(finalResponse, HttpStatus.OK);
+				  }
+				
+			}
+
+			else {
+				errno = "0435";
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);			
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+	    }
+	    	else {
+	    		errno = "CB422";
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+	    	}
+	    }
+	
+	    	else {
+	    		errno = "CB422";
+				errDesc = error.getProperty(errno);
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+		
+		
+		
+	
+	    logger.info("VC------------------------BEFORE GETTING RESPONSE------------------------VC "+refno);
+	    
+		if (errno.equals("0000") || (errno.equals("0868") && !out_response.trim().isEmpty()) || (errno.equals("0188") && !out_response.trim().isEmpty())) {
+			errno = "";
+			finalResponse = responseObj.getResponse(res_file_path, out_response, refno, noOfRecords);
+ 			migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "0", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "success" );
+		}else if(errno.equals("3293"))
+		{
+			    errDesc = error.getProperty(errno);			
+				finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+				migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+				return new ResponseEntity(finalResponse, HttpStatus.OK);
+		}
+		else {
+			try(Connection connection = dataSource.getConnection()) {
+			errDesc = errdesc.getCbsErrDesc(errno, callcode, opt, lsRecArea,connection);
+			}
+		 catch(SQLException e1) 
+			{
+			        errno = "3293";
+				    errDesc = error.getProperty(errno);		
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+			}
+			finalResponse = errobj.getErrorResponse(errno, errDesc, refno);
+			migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+			return new ResponseEntity(finalResponse, HttpStatus.OK);
+		}
+		
+		
+	} catch(Exception  ex) {
+		logger.info("EXCEPTION OCCURED IN PFMOB ENQUIRY " +" " + refno);
+		errno = "0155";
+		errDesc = error.getProperty(errno);
+		finalResponse = errobj.getErrorResponse(errno, errDesc, refno);	
+		migDetails.saveToLogDB(Base64.getEncoder().encodeToString((" ".toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+		return new ResponseEntity(finalResponse, HttpStatus.OK);
+	}
+	   return new ResponseEntity(finalResponse, HttpStatus.OK); 
+	}   
+private DataSource getDataSource(String dbType) {
+    switch (dbType) {
+        case "day":
+            return dayDataSource;
+        default:
+            throw new IllegalArgumentException("Unsupported database type: " + dbType);
+    }
+}
+}
 
-Executive Summary
 
-During high-traffic scenarios, the application experienced database connection exhaustion and prolonged connection holding, leading to throughput degradation and increased response times. A detailed analysis using VisualVM revealed that the root cause was the combined effect of DBIO usage in COBOL integration and ForkJoinPool–based parallelism.
 
-By replacing DBIO with direct SQL execution and removing ForkJoinPool, the application demonstrated significantly improved connection acquisition and release behavior, resulting in stable throughput and predictable performance under load.
 
 
----
 
-Problem Statement
 
-Under peak load conditions:
-
-Database connections were getting held for longer durations
-
-Connection pool reached max capacity quickly
-
-Incoming requests were blocked or timed out
-
-Overall TPS plateaued or dropped despite increased traffic
-
-
-This behavior was consistently reproducible during load testing.
-
-
----
-
-Observations from Monitoring (VisualVM)
-
-Using VisualVM, the following patterns were observed during high traffic:
-
-High number of active threads waiting for DB connections
-
-Increased blocked and waiting thread states
-
-Slow decline in active DB connections after traffic reduced
-
-ForkJoinPool worker threads holding DB connections longer than expected
-
-
-These indicators confirmed connection contention rather than CPU or memory bottlenecks.
-
-
----
-
-Root Cause Analysis
-
-1. DBIO Usage in COBOL Integration
-
-DBIO abstracts database operations but introduces implicit connection lifecycle handling
-
-Under high concurrency, DBIO calls resulted in:
-
-Delayed connection release
-
-Longer DB I/O hold times
-
-Reduced pool availability
-
-
-
-2. ForkJoinPool Parallelism
-
-ForkJoinPool is optimized for CPU-bound tasks, not I/O-bound DB operations
-
-DB calls executed inside ForkJoinPool threads caused:
-
-Threads waiting on I/O while holding DB connections
-
-Connection starvation for other requests
-
-Amplified contention during traffic spikes
-
-
-
-The combination of DBIO + ForkJoinPool significantly worsened DB pool utilization.
-
-
----
-
-Solution Implemented
-
-✅ Replaced DBIO with Direct SQL Queries
-
-Explicit SQL execution provided:
-
-Better control over connection lifecycle
-
-Faster execution paths
-
-Predictable connection release
-
-
-
-✅ Removed ForkJoinPool for DB Operations
-
-DB calls were moved to a controlled execution model
-
-Eliminated parallel DB access patterns that were unsuitable for limited DB pools
-
-Ensured threads do not block while holding connections
-
-
-
----
-
-Results After Optimization
-
-Post-change validation using VisualVM and load testing showed:
-
-Faster DB connection acquisition and release
-
-Reduced blocked/waiting thread counts
-
-Stable DB pool utilization even under high traffic
-
-Improved and consistent throughput
-
-Predictable system behavior during peak load
-
-
-The VisualVM graphs clearly showed smoother connection usage curves with no prolonged saturation.
-
-
----
-
-Key Takeaways
-
-ForkJoinPool should not be used for DB I/O–intensive operations
-
-Abstracted DB layers like DBIO can hide connection lifecycle issues under load
-
-Explicit SQL with controlled threading offers better performance predictability
-
-Proper tooling (VisualVM) is critical for identifying real bottlenecks
-
-
-
----
-
-Recommendation
-
-For production systems with limited DB connections and high traffic:
-
-Avoid CPU-optimized thread pools for I/O workloads
-
-Prefer explicit and controlled DB access patterns
-
-Continuously monitor connection pool metrics during load tests
-
-
-These practices ensure scalable, stable, and production-ready performance.
-
-
-
-
-
-
-
-
-
-
-
-Database Connection Contention Under High Traffic
-
-Executive Summary
-
-During high-traffic scenarios, the application experienced database connection exhaustion and prolonged connection holding, leading to throughput degradation and increased response times. A detailed analysis using VisualVM revealed that the root cause was the combined effect of DBIO usage in COBOL integration and ForkJoinPool–based parallelism.
-
-By replacing DBIO with direct SQL execution and removing ForkJoinPool, the application demonstrated significantly improved connection acquisition and release behavior, resulting in stable throughput and predictable performance under load.
-
-
----
-
-Problem Statement
-
-Under peak load conditions:
-
-Database connections were getting held for longer durations
-
-Connection pool reached max capacity quickly
-
-Incoming requests were blocked or timed out
-
-Overall TPS plateaued or dropped despite increased traffic
-
-
-This behavior was consistently reproducible during load testing.
-
-
----
-
-Observations from Monitoring (VisualVM)
-
-During load execution, VisualVM monitoring was used alongside JMeter (bzm Concurrency Thread Group) results to correlate application behavior with traffic patterns.
-
-JMeter Load Characteristics (Based on Attached Screenshots)
-
-Load was generated using bzm Concurrency Thread Group
-
-Gradual ramp-up of concurrent users to simulate production traffic
-
-Observed metrics included:
-
-Transactions Per Second (TPS)
-
-Active Threads (Concurrency)
-
-Response time trends
-
-
-
-As concurrency increased, TPS initially scaled linearly but later plateaued, indicating a backend bottleneck rather than a load-generation limitation.
-
-VisualVM Indicators (Before Fix)
-
-From the attached VisualVM screenshots, the following were observed:
-
-DB connection pool consistently reaching maximum limit
-
-Increased number of blocked and waiting threads
-
-ForkJoinPool worker threads holding DB connections for extended durations
-
-Slow recovery of DB connections even after traffic stabilized
-
-
-These indicators clearly pointed to DB connection contention under high concurrency rather than CPU or memory saturation, confirming the database layer as the primary bottleneck.
-
-
----
-
-Root Cause Analysis
-
-1. DBIO Usage in COBOL Integration
-
-DBIO abstracts database operations but introduces implicit connection lifecycle handling
-
-Under high concurrency, DBIO calls resulted in:
-
-Delayed connection release
-
-Longer DB I/O hold times
-
-Reduced pool availability
-
-
-
-2. ForkJoinPool Parallelism
-
-ForkJoinPool is optimized for CPU-bound tasks, not I/O-bound DB operations
-
-DB calls executed inside ForkJoinPool threads caused:
-
-Threads waiting on I/O while holding DB connections
-
-Connection starvation for other requests
-
-Amplified contention during traffic spikes
-
-
-
-The combination of DBIO + ForkJoinPool significantly worsened DB pool utilization.
-
-
----
-
-Solution Implemented
-
-✅ Replaced DBIO with Direct SQL Queries
-
-Explicit SQL execution provided:
-
-Better control over connection lifecycle
-
-Faster execution paths
-
-Predictable connection release
-
-
-
-✅ Removed ForkJoinPool for DB Operations
-
-DB calls were moved to a controlled execution model
-
-Eliminated parallel DB access patterns that were unsuitable for limited DB pools
-
-Ensured threads do not block while holding connections
-
-
-
----
-
-Results After Optimization
-
-Post-implementation validation was performed using the same JMeter bzm Concurrency Thread Group configuration and monitored via VisualVM, ensuring an apples-to-apples comparison.
-
-JMeter Results (After Fix)
-
-TPS scaled more predictably with increasing concurrency
-
-Reduced variance in response times under sustained load
-
-No abrupt TPS drops during high traffic phases
-
-
-VisualVM Indicators (After Fix)
-
-Based on the attached VisualVM screenshots after the changes:
-
-DB connections were acquired and released smoothly
-
-Significant reduction in blocked and waiting thread states
-
-ForkJoinPool–related thread contention eliminated
-
-DB pool recovered quickly after peak load
-
-
-The VisualVM graphs clearly showed stable and evenly distributed DB connection usage, with no prolonged saturation even under high traffic.
-
-
----
-
-Key Takeaways
-
-ForkJoinPool should not be used for DB I/O–intensive operations
-
-Abstracted DB layers like DBIO can hide connection lifecycle issues under load
-
-Explicit SQL with controlled threading offers better performance predictability
-
-Proper tooling (VisualVM) is critical for identifying real bottlenecks
-
-
-
----
-
-Recommendation
-
-For production systems with limited DB connections and high traffic:
-
-Avoid CPU-optimized thread pools for I/O workloads
-
-Prefer explicit and controlled DB access patterns
-
-Continuously monitor connection pool metrics during load tests
-
-
-These practices ensure scalable, stable, and production-ready performance.
-
-
-
-
-
-
-
-
-
-
-Database Connection Contention Under High Traffic
-
-Executive Summary
-
-During high-traffic scenarios, the application experienced database connection exhaustion and prolonged connection holding, leading to throughput degradation and increased response times. A detailed analysis using VisualVM revealed that the root cause was the combined effect of DBIO usage in COBOL integration and ForkJoinPool–based parallelism.
-
-By replacing DBIO with direct SQL execution and removing ForkJoinPool, the application demonstrated significantly improved connection acquisition and release behavior, resulting in stable throughput and predictable performance under load.
-
-
----
-
-Problem Statement
-
-Under peak load conditions:
-
-Database connections were getting held for longer durations
-
-Connection pool reached max capacity quickly
-
-Incoming requests were blocked or timed out
-
-Overall TPS plateaued or dropped despite increased traffic
-
-
-This behavior was consistently reproducible during load testing.
-
-
----
-
-Observations from Monitoring (VisualVM)
-
-During load execution, VisualVM monitoring was used alongside JMeter (bzm Concurrency Thread Group) results to correlate application behavior with traffic patterns.
-
-JMeter Load Characteristics (Based on Attached Screenshots)
-
-Load was generated using bzm Concurrency Thread Group
-
-Gradual ramp-up of concurrent users to simulate production traffic
-
-Observed metrics included:
-
-Transactions Per Second (TPS)
-
-Active Threads (Concurrency)
-
-Response time trends
-
-
-
-As concurrency increased, TPS initially scaled linearly but later plateaued, indicating a backend bottleneck rather than a load-generation limitation.
-
-VisualVM Indicators (Before Fix)
-
-From the attached VisualVM screenshots, the following were observed:
-
-DB connection pool consistently reaching maximum limit
-
-Increased number of blocked and waiting threads
-
-ForkJoinPool worker threads holding DB connections for extended durations
-
-Slow recovery of DB connections even after traffic stabilized
-
-
-These indicators clearly pointed to DB connection contention under high concurrency rather than CPU or memory saturation, confirming the database layer as the primary bottleneck.
-
-
----
-
-Root Cause Analysis
-
-1. DBIO Usage in COBOL Integration
-
-DBIO abstracts database operations but introduces implicit connection lifecycle handling
-
-Under high concurrency, DBIO calls resulted in:
-
-Delayed connection release
-
-Longer DB I/O hold times
-
-Reduced pool availability
-
-
-
-2. ForkJoinPool Parallelism
-
-ForkJoinPool is optimized for CPU-bound tasks, not I/O-bound DB operations
-
-DB calls executed inside ForkJoinPool threads caused:
-
-Threads waiting on I/O while holding DB connections
-
-Connection starvation for other requests
-
-Amplified contention during traffic spikes
-
-
-
-The combination of DBIO + ForkJoinPool significantly worsened DB pool utilization.
-
-
----
-
-Solution Implemented
-
-✅ Replaced DBIO with Direct SQL Queries
-
-Explicit SQL execution provided:
-
-Better control over connection lifecycle
-
-Faster execution paths
-
-Predictable connection release
-
-
-
-✅ Removed ForkJoinPool for DB Operations
-
-DB calls were moved to a controlled execution model
-
-Eliminated parallel DB access patterns that were unsuitable for limited DB pools
-
-Ensured threads do not block while holding connections
-
-
-
----
-
-Before vs After Analysis (VisualVM Evidence)
-
-Before Optimization (With DBIO + ForkJoinPool)
-
-Based on the first attached VisualVM screenshot:
-
-ActiveConnections rapidly climbed to the maximum limit (~30) and stayed saturated for long durations
-
-IdleConnections remained close to zero, indicating the pool had no free capacity
-
-ThreadsAwaitingConnection showed sustained high values (10–20 threads), proving that application threads were blocked waiting for DB connections
-
-Even after traffic stabilized, connections were not released promptly, leading to prolonged contention
-
-
-This clearly demonstrates that DB connections were being held longer than necessary, causing thread starvation and throughput degradation under high load.
-
-
----
-
-After Optimization (DBIO Removed + ForkJoinPool Eliminated)
-
-Based on the second attached VisualVM screenshot:
-
-ActiveConnections still reached peak values but showed faster drop-off and recovery
-
-IdleConnections increased during steady-state and post-load phases, confirming timely connection release
-
-ThreadsAwaitingConnection reduced significantly and stabilized at lower values
-
-The DB pool recovered quickly once traffic reduced, with no prolonged saturation
-
-
-This confirms that DB connection lifecycle handling became more efficient and predictable after the changes.
-
-
----
-
-Results After Optimization
-
-Post-implementation validation was performed using the same JMeter bzm Concurrency Thread Group configuration and monitored via VisualVM, ensuring an apples-to-apples comparison.
-
-JMeter Results (After Fix)
-
-TPS scaled more predictably with increasing concurrency
-
-Reduced variance in response times under sustained load
-
-No abrupt TPS drops during high traffic phases
-
-
-VisualVM Indicators (After Fix)
-
-Based on the attached VisualVM screenshots after the changes:
-
-DB connections were acquired and released smoothly
-
-Significant reduction in blocked and waiting thread states
-
-ForkJoinPool–related thread contention eliminated
-
-DB pool recovered quickly after peak load
-
-
-The VisualVM graphs clearly showed stable and evenly distributed DB connection usage, with no prolonged saturation even under high traffic.
-
-
----
-
-Key Takeaways
-
-ForkJoinPool should not be used for DB I/O–intensive operations
-
-Abstracted DB layers like DBIO can hide connection lifecycle issues under load
-
-Explicit SQL with controlled threading offers better performance predictability
-
-Proper tooling (VisualVM) is critical for identifying real bottlenecks
-
-
-
----
-
-Recommendation
-
-For production systems with limited DB connections and high traffic:
-
-Avoid CPU-optimized thread pools for I/O workloads
-
-Prefer explicit and controlled DB access patterns
-
-Continuously monitor connection pool metrics during load tests
-
-
-These practices ensure scalable, stable, and production-ready performance.
