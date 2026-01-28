@@ -1,31 +1,144 @@
-2026-01-28 13:59:46,184 ERROR org.apache.juli.logging.DirectJDKLog [http-nio-10.243.6.75-6633-exec-1] Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'MRE1Service': Unsatisfied dependency expressed through field 'syscReponight'; nested exception is org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'com.tcs.bancs.microservices.repository.night.SyscRepository' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {@org.springframework.beans.factory.annotation.Autowired(required=true), @org.springframework.beans.factory.annotation.Qualifier(value="syscReponight")}] with root cause
-|||org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'com.tcs.bancs.microservices.repository.night.SyscRepository' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {@org.springframework.beans.factory.annotation.Autowired(required=true), @org.springframework.beans.factory.annotation.Qualifier(value="syscReponight")}
+2026-01-28 14:55:44,963 ERROR org.apache.juli.logging.DirectJDKLog [http-nio-10.243.6.75-6633-exec-1] Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'MRE1Service': Unsatisfied dependency expressed through field 'SyscReponight'; nested exception is org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'com.tcs.bancs.microservices.repository.night.SyscDetailNightRepo' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {@org.springframework.beans.factory.annotation.Autowired(required=true)}] with root cause
+|||org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'com.tcs.bancs.microservices.repository.night.SyscDetailNightRepo' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {@org.springframework.beans.factory.annotation.Autowired(required=true)}
 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.raiseNoMatchingBeanFound(DefaultListableBeanFactory.java:1717)
-	at
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1273)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1227)
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor$AutowiredFieldElement.inject(AutowiredAnnotationBeanPostProcessor.java:640)
+	at org.springframework.beans.factory.annotation.InjectionMetadata.inject(InjectionMetadata.java:119)
+	at org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor.postProcessProperties(AutowiredAnnotationBeanPostProcessor.java:399)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.populateBean(AbstractAutowireCapableBeanFactory.java:1420)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:593)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:516)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:324)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:322)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
+	at org.springframework.web.method.HandlerMethod.createWithResolvedBean(HandlerMethod.java:336)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.getHandlerInternal(AbstractHandlerMethodMapping.java:368)
+	at org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping.getHandlerInternal(RequestMappingInfoHandlerMapping.java:110)
+	at org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping.getHandlerInternal(RequestMappingInfoHandlerMapping.java:59)
+	at org.springframework.web.servlet.handler.AbstractHandlerMapping.getHandler(AbstractHandlerMapping.java:396)
+	at org.springframework.web.servlet.DispatcherServlet.getHandler(DispatcherServlet.java:1234)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1016)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:943)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006)
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:909)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:652)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:733)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:231)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:166)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:53)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:166)
+	at com.tcs.bancs.microservices.interceptor.ResponseHeaderFilter.doFilterInternal(ResponseHeaderFilter.java:25)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:166)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:166)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:166)
+	at org.springframework.boot.actuate.metrics.web.servlet.WebMvcMetricsFilter.doFilterInternal(WebMvcMetricsFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:166)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:119)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:166)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:202)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:97)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:542)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:143)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:92)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:78)
+	at org.apache.catalina.valves.AbstractAccessLogValve.invoke(AbstractAccessLogValve.java:690)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:343)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:374)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:65)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:868)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1590)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:49)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+
 	
 	
-	
-	
-		@Autowired
-	@Qualifier("syscReponight")
-	SyscRepository syscReponight;
-	
-	
-	@Repository
-public interface SyscRepository extends JpaRepository<Sysc, Syscpk>{
+	package com.tcs.bancs.microservices.repository.night;
+
+import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import com.tcs.bancs.microservices.db.model.Sysc;
+import com.tcs.bancs.microservices.db.model.Syscpk;
+
+
+@Repository("SyscReponight")
+public interface SyscDetailNightRepo extends JpaRepository<Sysc, Syscpk>{
 	@Query(value="select /*+INDEX_ASC(SYSC SYSCPK)*/ * from SYSC where TARGET_LEVEL='01' AND REGION_NO='a' AND SYSTEM_NO='00' AND NODE_NO='01' AND REPLICA_TYPE_X='ZZ' AND REPLICA_NO='000'", nativeQuery=true)
 	  public List<Sysc> findBySyscDetail();
 
 }
 
 
+package com.tcs.bancs.microservices;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Import;
+//import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
+import com.tcs.bancs.microservices.config.CBSDayDbConfig;
+import com.tcs.bancs.microservices.config.CBSNightDbConfig;
+import com.tcs.bancs.microservices.config.CBSRefDbConfig;
+import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
+@SpringBootApplication(exclude = { DataSourceAutoConfiguration.class, // HibernateJpaAutoConfiguration.class,
+		DataSourceTransactionManagerAutoConfiguration.class }, scanBasePackages = "com.tcs.bancs.microservices")
+@ComponentScan(basePackages = { "com.tcs.bancs.microservices", "com.tcs.bancs.microservices.config",
+		"com.tcs.bancs.api", "com.tcs.bancs.microservices.interceptor", "com.tcs.bancs.microservices.api",
+		"com.tcs.bancs.microservices.model", "com.tcs.bancs.microservices.util", "com.tcs.bancs.microservices",
+		"com.tcs.bancs.microservices.impl", "com.tcs.bancs.microservices.repository.day",
+		"com.tcs.bancs.microservices.repository.night", "com.tcs.bancs.microservices.repository.ref",
+		"com.tcs.bancs.microservices.exception", "com.tcs.bancs.microservices.mappings",
+		"com.tcs.bancs.microservices.model" })
+@EnableSwagger2
+@Import({ CBSDayDbConfig.class, CBSNightDbConfig.class, CBSRefDbConfig.class })
+public class OpenBankingServicesApp extends SpringBootServletInitializer {
+	private static Logger LOGGER = LoggerFactory.getLogger(OpenBankingServicesApp.class);
 
+	public static void main(String[] args) {
 
+		if (System.getProperty("ChannelsPropConfigPath") == null) {
+			LOGGER.info(
+					"Path to config property file is not set! Please set the system variable \"ChannelsPropConfigPath\" with the path to the config file.");
+			LOGGER.info("Execution Finished with Error!");
+		}
 
+		SpringApplication.run(OpenBankingServicesApp.class, args);
 
+	}
+
+	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
+		return builder.sources(OpenBankingServicesApp.class);
+	}
+
+}
 
 
 
