@@ -1,3 +1,44 @@
+2026-01-28 13:59:46,184 ERROR org.apache.juli.logging.DirectJDKLog [http-nio-10.243.6.75-6633-exec-1] Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'MRE1Service': Unsatisfied dependency expressed through field 'syscReponight'; nested exception is org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'com.tcs.bancs.microservices.repository.night.SyscRepository' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {@org.springframework.beans.factory.annotation.Autowired(required=true), @org.springframework.beans.factory.annotation.Qualifier(value="syscReponight")}] with root cause
+|||org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'com.tcs.bancs.microservices.repository.night.SyscRepository' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {@org.springframework.beans.factory.annotation.Autowired(required=true), @org.springframework.beans.factory.annotation.Qualifier(value="syscReponight")}
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.raiseNoMatchingBeanFound(DefaultListableBeanFactory.java:1717)
+	at
+	
+	
+	
+	
+		@Autowired
+	@Qualifier("syscReponight")
+	SyscRepository syscReponight;
+	
+	
+	@Repository
+public interface SyscRepository extends JpaRepository<Sysc, Syscpk>{
+	@Query(value="select /*+INDEX_ASC(SYSC SYSCPK)*/ * from SYSC where TARGET_LEVEL='01' AND REGION_NO='a' AND SYSTEM_NO='00' AND NODE_NO='01' AND REPLICA_TYPE_X='ZZ' AND REPLICA_NO='000'", nativeQuery=true)
+	  public List<Sysc> findBySyscDetail();
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 public class MobileEnqService {
 	
 	Logger logger = LoggerFactory.getLogger(MobileEnqService.class);
