@@ -1,3 +1,77 @@
+
+
+@Override
+public String toString() {
+    return new StringBuilder()
+        .append(CobolFormatter.alpha(rdFlag, 1))                 // PIC X(001)
+        .append(CobolFormatter.alpha(acctDesc, 1))               // PIC X(001)
+        .append(CobolFormatter.numeric(dteLastChg, 9))           // PIC S9(09) COMP
+        .append(CobolFormatter.alpha(status, 1))                 // PIC X(001)
+        .append(CobolFormatter.numeric(closeDt, 9))              // PIC S9(09) COMP
+        .append(CobolFormatter.alpha(instLFreq, 1))              // PIC X(001)
+        .append(CobolFormatter.numeric(instlMltplAmt, 17))       // S9(14)V9(03)
+        .append(CobolFormatter.alpha(minOpenBal, 3))             // PIC X(003)
+        .append(CobolFormatter.numeric(maxOpenBal, 17))          // S9(14)V9(03)
+        .append(CobolFormatter.alpha(termDays, 4))               // PIC X(004)
+        .append(CobolFormatter.alpha(termDaysMax, 4))            // PIC X(004)
+        .append(CobolFormatter.alpha(termBasis, 1))              // PIC X(001)
+        .append(CobolFormatter.alpha(termIntFrequency, 3))       // PIC X(003)
+        .append(CobolFormatter.alpha(termIntMethod, 1))          // PIC X(001)
+        .append(CobolFormatter.alpha(termFixDtInt, 1))           // PIC X(001)
+        .append(CobolFormatter.alpha(InstalFlag, 1))             // PIC X(001)
+        .append(CobolFormatter.alpha(ReinvInt, 1))               // PIC X(001)
+        .append(CobolFormatter.alpha(annivDating, 1))            // PIC X(001)
+        .append(CobolFormatter.alpha(diviFlag, 1))               // PIC X(001)
+        .append(CobolFormatter.alpha(intCat, 4))                 // PIC X(004)
+        .append(CobolFormatter.numeric(crIntDaysYr, 3))          // PIC S9(03) COMP
+        .append(CobolFormatter.numeric(calendarCode, 2))         // PIC S9(02) COMP
+        .append(CobolFormatter.alpha(goldFlag, 1))               // PIC X(001)
+        .append(CobolFormatter.alpha(termIntCompFreq, 3))        // PIC X(003)
+        .append(CobolFormatter.alpha(monBaseInt, 1))             // PIC X(001)
+        .append(CobolFormatter.numeric(CrCompEodDt, 9))          // PIC S9(09) COMP
+        .append(CobolFormatter.alpha(minCompPrdBasis, 1))        // PIC X(001)
+        .append(CobolFormatter.alpha(termMinCompPrd, 4))         // PIC X(004)
+        .append(CobolFormatter.alpha(intRndPrcs, 1))             // PIC X(001)
+        .append(CobolFormatter.alpha(intRndRule, 4))             // PIC X(004)
+        .append(CobolFormatter.alpha(intRndMethod, 1))           // PIC X(001)
+        .append(CobolFormatter.alpha(salbId, 2))                 // PIC X(002)
+        .append(CobolFormatter.alpha(cofmFlag, 1))               // PIC X(001)
+        .append(CobolFormatter.alpha(curacDbaseId, 4))           // PIC X(004)
+        .append(CobolFormatter.alpha(curacDrateId, 4))           // PIC X(004)
+        .append(CobolFormatter.alpha(curacDtierId, 4))           // PIC X(004)
+        .append(CobolFormatter.alpha(varRateFlag, 1))            // PIC X(001)
+        .append(CobolFormatter.alpha(currency, 3))               // PIC X(003)
+        .append(CobolFormatter.alpha(tomRateTblId, 4))           // PIC X(004)
+        .toString();
+}
+
+
+public final class CobolFormatter {
+
+    private CobolFormatter() {}
+
+    // For PIC X(...)
+    public static String alpha(String value, int length) {
+        if (value == null) value = "";
+        if (value.length() > length) return value.substring(0, length);
+        return String.format("%-" + length + "s", value);
+    }
+
+    // For PIC 9 / S9 / COMP (treated as numeric string)
+    public static String numeric(String value, int length) {
+        if (value == null || value.trim().isEmpty()) value = "0";
+        value = value.replaceAll("\\D", ""); // safety
+        if (value.length() > length) return value.substring(value.length() - length);
+        return String.format("%0" + length + "d", Long.parseLong(value));
+    }
+}
+
+
+
+
+
+
+
 package com.tcs.bancs.microservices.db.model;
 
 import java.io.Serializable;
