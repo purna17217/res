@@ -1,3 +1,549 @@
+package com.tcs.bancs.microservices.db.model;
+
+import java.io.Serializable;
+
+import javax.persistence.Column;
+import javax.persistence.EmbeddedId;
+import javax.persistence.Entity;
+
+
+	
+	@Entity
+	public class Depp extends BaseModel implements Serializable {
+		private static final long serialVersionUID = 1L;
+		 
+		@EmbeddedId
+		private Depppk depppk ;
+		
+		
+		@Column(name="RD_FLAG")
+		private String rdFlag;
+
+		@Column(name="ACCT_DESC")
+		private String acctDesc;
+		
+		@Column(name="DTE_LAST_CHG")
+		private String dteLastChg;
+		
+		@Column(name="STATUS")
+		private String status;
+		
+		@Column(name="CLOSE_DT")
+		private String closeDt;
+		
+		@Column(name="INSTL_FREQ")
+		private String instLFreq;
+		
+		@Column(name="INSTL_MLTPL_AMT")
+		private String instlMltplAmt;
+		
+		@Column(name="MIN_OPEN_BAL")
+		private String minOpenBal;
+		
+		@Column(name="MAX_OPEN_BAL")
+		private String maxOpenBal;
+		
+		@Column(name="TERM_DAYS")
+		private String termDays;
+		
+		@Column(name="TERM_DAYS_MAX")
+		private String termDaysMax;
+		
+		@Column(name="TERM_BASIS")
+		private String termBasis ;
+		
+		@Column(name="TERM_INT_FREQUENCY")
+		private String termIntFrequency;
+		
+		@Column(name="TERM_INT_METHOD")
+		private String termIntMethod;
+		
+		@Column(name="TERM_FIX_DT_INT")
+		private String termFixDtInt;
+		
+		@Column(name="INSTAL_FLAG")
+		private String InstalFlag;
+				
+		@Column(name="REINV_INT")
+		private String ReinvInt;
+		
+		@Column(name="ANNIV_DATING")
+		private String annivDating;
+		
+		@Column(name="DIVI_FLAG")
+		private String diviFlag;
+		
+		@Column(name="INT_CAT")
+		private String intCat;
+		
+		@Column(name="CR_INT_DAYS_YR")
+		private String crIntDaysYr;
+		
+		@Column(name="CALENDAR_CODE")
+		private String calendarCode;
+		
+		@Column(name="GOLD_FLAG")
+		private String goldFlag;
+				
+		@Column(name="TERM_INT_COMP_FREQ")
+		private String termIntCompFreq;
+		
+		@Column(name="MON_BASE_INT")
+		private String monBaseInt;
+		
+		@Column(name="CR_COMP_EOP_DT")
+		private String CrCompEodDt;
+		
+		@Column(name="MIN_COMP_PRD_BASIS")
+		private String minCompPrdBasis;
+		
+		@Column(name="TERM_MIN_COMP_PRD")
+		private String termMinCompPrd;
+		
+		@Column(name="INT_RND_PRCS")
+		private String intRndPrcs;
+		
+		@Column(name="INT_RND_RULE")
+		private String intRndRule;
+		
+		@Column(name="INT_RND_METHOD")
+		private String intRndMethod;
+		
+		@Column(name="SLAB_ID")
+		private String salbId;
+		
+		@Column(name="LOCK_IN_FLAG")
+		private String lockInFlag;
+		
+		@Column(name="CURAC_DBASE_ID")
+		private String curacDbaseId;
+		
+		@Column(name="CURAC_DRATE_ID")
+		private String curacDrateId;
+		
+		@Column(name="CURAC_DTIER_ID")
+		private String curacDtierId;
+		
+		@Column(name="VAR_RATE_FLAG")
+		private String varRateFlag;
+		
+		@Column(name="CURRENCY")
+		private String currency;
+		
+		@Column(name="COFM_FLAG")
+		private String cofmFlag;
+		
+		@Column(name="TOM_RATE_TBL_ID")
+		private String tomRateTblId;
+
+		public Depppk getDepppk() {
+			return depppk;
+		}
+
+		public void setDepppk(Depppk depppk) {
+			this.depppk = depppk;
+		}
+
+		public String getRdFlag() {
+			return rdFlag;
+		}
+
+		public void setRdFlag(String rdFlag) {
+			this.rdFlag = rdFlag;
+		}
+
+		public String getAcctDesc() {
+			return acctDesc;
+		}
+
+		public void setAcctDesc(String acctDesc) {
+			this.acctDesc = acctDesc;
+		}
+
+		public String getDteLastChg() {
+			return dteLastChg;
+		}
+
+		public void setDteLastChg(String dteLastChg) {
+			this.dteLastChg = dteLastChg;
+		}
+
+		public String getStatus() {
+			return status;
+		}
+
+		public void setStatus(String status) {
+			this.status = status;
+		}
+
+		public String getCloseDt() {
+			return closeDt;
+		}
+
+		public void setCloseDt(String closeDt) {
+			this.closeDt = closeDt;
+		}
+
+		public String getInstLFreq() {
+			return instLFreq;
+		}
+
+		public void setInstLFreq(String instLFreq) {
+			this.instLFreq = instLFreq;
+		}
+
+		public String getInstlMltplAmt() {
+			return instlMltplAmt;
+		}
+
+		public void setInstlMltplAmt(String instlMltplAmt) {
+			this.instlMltplAmt = instlMltplAmt;
+		}
+
+		public String getMinOpenBal() {
+			return minOpenBal;
+		}
+
+		public void setMinOpenBal(String minOpenBal) {
+			this.minOpenBal = minOpenBal;
+		}
+
+		public String getMaxOpenBal() {
+			return maxOpenBal;
+		}
+
+		public void setMaxOpenBal(String maxOpenBal) {
+			this.maxOpenBal = maxOpenBal;
+		}
+
+		public String getTermDays() {
+			return termDays;
+		}
+
+		public void setTermDays(String termDays) {
+			this.termDays = termDays;
+		}
+
+		public String getTermDaysMax() {
+			return termDaysMax;
+		}
+
+		public void setTermDaysMax(String termDaysMax) {
+			this.termDaysMax = termDaysMax;
+		}
+
+		public String getTermBasis() {
+			return termBasis;
+		}
+
+		public void setTermBasis(String termBasis) {
+			this.termBasis = termBasis;
+		}
+
+		public String getTermIntFrequency() {
+			return termIntFrequency;
+		}
+
+		public void setTermIntFrequency(String termIntFrequency) {
+			this.termIntFrequency = termIntFrequency;
+		}
+
+		public String getTermIntMethod() {
+			return termIntMethod;
+		}
+
+		public void setTermIntMethod(String termIntMethod) {
+			this.termIntMethod = termIntMethod;
+		}
+
+		public String getTermFixDtInt() {
+			return termFixDtInt;
+		}
+
+		public void setTermFixDtInt(String termFixDtInt) {
+			this.termFixDtInt = termFixDtInt;
+		}
+
+		public String getInstalFlag() {
+			return InstalFlag;
+		}
+
+		public void setInstalFlag(String instalFlag) {
+			InstalFlag = instalFlag;
+		}
+
+		public String getReinvInt() {
+			return ReinvInt;
+		}
+
+		public void setReinvInt(String reinvInt) {
+			ReinvInt = reinvInt;
+		}
+
+		public String getAnnivDating() {
+			return annivDating;
+		}
+
+		public void setAnnivDating(String annivDating) {
+			this.annivDating = annivDating;
+		}
+
+		public String getDiviFlag() {
+			return diviFlag;
+		}
+
+		public void setDiviFlag(String diviFlag) {
+			this.diviFlag = diviFlag;
+		}
+
+		public String getIntCat() {
+			return intCat;
+		}
+
+		public void setIntCat(String intCat) {
+			this.intCat = intCat;
+		}
+
+		public String getCrIntDaysYr() {
+			return crIntDaysYr;
+		}
+
+		public void setCrIntDaysYr(String crIntDaysYr) {
+			this.crIntDaysYr = crIntDaysYr;
+		}
+
+		public String getCalendarCode() {
+			return calendarCode;
+		}
+
+		public void setCalendarCode(String calendarCode) {
+			this.calendarCode = calendarCode;
+		}
+
+		public String getGoldFlag() {
+			return goldFlag;
+		}
+
+		public void setGoldFlag(String goldFlag) {
+			this.goldFlag = goldFlag;
+		}
+
+		public String getTermIntCompFreq() {
+			return termIntCompFreq;
+		}
+
+		public void setTermIntCompFreq(String termIntCompFreq) {
+			this.termIntCompFreq = termIntCompFreq;
+		}
+
+		public String getMonBaseInt() {
+			return monBaseInt;
+		}
+
+		public void setMonBaseInt(String monBaseInt) {
+			this.monBaseInt = monBaseInt;
+		}
+
+		public String getCrCompEodDt() {
+			return CrCompEodDt;
+		}
+
+		public void setCrCompEodDt(String crCompEodDt) {
+			CrCompEodDt = crCompEodDt;
+		}
+
+		public String getMinCompPrdBasis() {
+			return minCompPrdBasis;
+		}
+
+		public void setMinCompPrdBasis(String minCompPrdBasis) {
+			this.minCompPrdBasis = minCompPrdBasis;
+		}
+
+		public String getTermMinCompPrd() {
+			return termMinCompPrd;
+		}
+
+		public void setTermMinCompPrd(String termMinCompPrd) {
+			this.termMinCompPrd = termMinCompPrd;
+		}
+
+		public String getIntRndPrcs() {
+			return intRndPrcs;
+		}
+
+		public void setIntRndPrcs(String intRndPrcs) {
+			this.intRndPrcs = intRndPrcs;
+		}
+
+		public String getIntRndRule() {
+			return intRndRule;
+		}
+
+		public void setIntRndRule(String intRndRule) {
+			this.intRndRule = intRndRule;
+		}
+
+		public String getIntRndMethod() {
+			return intRndMethod;
+		}
+
+		public void setIntRndMethod(String intRndMethod) {
+			this.intRndMethod = intRndMethod;
+		}
+
+		public String getSalbId() {
+			return salbId;
+		}
+
+		public void setSalbId(String salbId) {
+			this.salbId = salbId;
+		}
+
+		public String getLockInFlag() {
+			return lockInFlag;
+		}
+
+		public void setLockInFlag(String lockInFlag) {
+			this.lockInFlag = lockInFlag;
+		}
+
+		public String getCuracDbaseId() {
+			return curacDbaseId;
+		}
+
+		public void setCuracDbaseId(String curacDbaseId) {
+			this.curacDbaseId = curacDbaseId;
+		}
+
+		public String getCuracDrateId() {
+			return curacDrateId;
+		}
+
+		public void setCuracDrateId(String curacDrateId) {
+			this.curacDrateId = curacDrateId;
+		}
+
+		public String getCuracDtierId() {
+			return curacDtierId;
+		}
+
+		public void setCuracDtierId(String curacDtierId) {
+			this.curacDtierId = curacDtierId;
+		}
+
+		public String getVarRateFlag() {
+			return varRateFlag;
+		}
+
+		public void setVarRateFlag(String varRateFlag) {
+			this.varRateFlag = varRateFlag;
+		}
+
+		public String getCurrency() {
+			return currency;
+		}
+
+		public void setCurrency(String currency) {
+			this.currency = currency;
+		}
+
+		public String getCofmFlag() {
+			return cofmFlag;
+		}
+
+		public void setCofmFlag(String cofmFlag) {
+			this.cofmFlag = cofmFlag;
+		}
+
+		public String getTomRateTblId() {
+			return tomRateTblId;
+		}
+
+		public void setTomRateTblId(String tomRateTblId) {
+			this.tomRateTblId = tomRateTblId;
+		}
+
+		@Override
+		public String toString() {
+			return String.join("",rdFlag,acctDesc,dteLastChg,status,closeDt,instLFreq,instlMltplAmt,minOpenBal,maxOpenBal,termDays,termDaysMax,termBasis,termIntFrequency,termIntMethod,termFixDtInt,InstalFlag,ReinvInt,annivDating,diviFlag,intCat,crIntDaysYr,calendarCode,goldFlag,termIntCompFreq,monBaseInt,CrCompEodDt,minCompPrdBasis,termMinCompPrd,intRndPrcs,intRndRule,intRndMethod,salbId,lockInFlag,curacDbaseId,curacDrateId,curacDtierId,varRateFlag,currency,cofmFlag,tomRateTblId );
+		}
+		
+		
+	
+		
+	}
+	
+	
+	
+	
+	
+	  03  D-RD-FLAG                     PIC X(001) .
+    03  D-ACCT-DESC                   PIC X(001) .
+    03  D-DTE-LAST-CHG                PIC S9(09) COMP.
+    03  D-STATUS                      PIC X(001) .
+    03  D-CLOSE-DT                    PIC S9(09) COMP.
+    03  D-INSTL-FREQ                  PIC X(001) .
+    03  D-INSTL-MLTPL-AMT             PIC S9(14)V9(03) COMP-3.
+    03  D-MIN-OPEN-BAL-CUR            PIC X(003) .
+    03  D-MAX-OPEN-BAL                PIC S9(14)V9(03) COMP-3.
+    03  D-TERM-DAYS                   PIC X(004) .
+    03  D-TERM-DAYS-MAX               PIC X(004) .
+    03  D-TERM-BASIS                  PIC X(001) .
+    03  D-TERM-INT-FREQUENCY          PIC X(003) .
+    03  D-TERM-INT-METHOD             PIC X(001) .
+    03  D-TERM-FIX-DT-INT             PIC X(001) .
+      03  D-INSTAL-FLAG                 PIC X(001) .
+      03  D-REINV-INT                   PIC X(001) .
+      03  D-ANNIV-DATING                PIC X(001) .
+      03  D-DIVI-FLAG                   PIC X(001) .
+      03  D-SAVP-INT-CAT                PIC X(004) .
+      03  D-CR-INT-DAYS-YR              PIC S9(03) COMP.
+      03  D-CALENDAR-CODE               PIC S9(02) COMP.
+      03  D-GOLD-FLAG                   PIC X(001) .
+      03  D-TERM-INT-COMP-FREQ          PIC X(003) .
+      03  D-MON-BASE-INT                PIC X(001) .
+      03  D-CR-COMP-EOP-DT              PIC S9(09) COMP.
+      03  D-MIN-COMP-PRD-BASIS          PIC X(001) .
+      03  D-TERM-MIN-COMP-PRD           PIC X(004) .
+      03  D-INT-RND-PRCS                PIC X(001) .
+      03  D-INT-RND-RULE                PIC X(004) .
+      03  D-INT-RND-METHOD              PIC X(001) .
+    03  D-SLAB-ID                     PIC X(002) .
+    03  D-COFM-FLAG                   PIC X(001) .
+    03  D-CURAC-DBASE-ID              PIC X(004) .
+      03  D-CURAC-DRATE-ID              PIC X(004) .
+      03  D-CURAC-DTIER-ID              PIC X(004) .
+    03  D-FIX-RATE-TERM-FLAG          PIC X(001) .
+    03  D-CURRENCY                    PIC X(003) .
+    03  D-COFM-FLAG                   PIC X(001) .
+    03  D-TOM-RATE-TBL-ID             PIC X(004) .
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ||getCustomerDetails|2026-02-02 13:12:37,096 ERROR com.tcs.bancs.microservices.services.MobileEnqServiceTest [http-nio-10.243.6.75-1002-exec-2] MOB-ENQUIRY-FAILURE | Ref=SBIES00000010050000000303
 ||getCustomerDetails|java.lang.NullPointerException: null
 	at com.tcs.bancs.microservices.services.MobileEnqServiceTest.executeCobolCall(MobileEnqServiceTest.java:369)
