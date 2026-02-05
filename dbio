@@ -1,4 +1,4 @@
-
+The method alpha cannot be declared static; static methods can only be declared in a static or top level type
 
 @Override
 public String toString() {
