@@ -1,1 +1,423 @@
- 
+package com.tcs.bancs.microservices.utils;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import com.tcs.bancs.microservices.db.model.Sysc;
+import com.tcs.bancs.microservices.repository.night.SyscDetailNightRepo;
+
+
+@Component
+public class SyscReader {
+	Logger LOGGER = LoggerFactory.getLogger(SyscReader.class);
+	
+	
+	@Autowired
+	SyscDetailNightRepo syscReponight;
+	
+	public volatile boolean Night;
+	public volatile boolean Day;
+	public volatile boolean Ref;
+	public volatile boolean NoSysc;
+
+	
+	public void readSysc() {
+
+		List<Sysc> syscRes = new ArrayList<Sysc>();
+		syscRes = syscReponight.findBySyscDetail();
+		try {
+		if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("D")) {
+			Night = false;
+			Ref = false;
+			Day = true;
+			LOGGER.info("Data Fetch from Day DB");
+		} else if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("N")
+				&& syscRes.get(0).getSyscVariable().substring(74, 75).equals("r")) {
+			Night = false;
+			Ref = true;
+			Day = false;
+			LOGGER.info("Data Fetch from Ref DB");
+		} else if (syscRes.get(0).getSyscVariable().substring(10, 11).equals("N")) {
+			Night = true;
+			Day = false;
+			Ref = false;
+			LOGGER.info("Data Fetch from Night DB");
+		}
+	}
+	
+	catch(Exception e)
+	{
+		LOGGER.info("Data Fetch from Day DB By Deafult - No SYSC Variable");
+		Night = false;
+		Ref = false;
+		Day = false;
+		NoSysc=true;
+	}
+	}
+	public boolean Night() {
+		return Night;
+	}
+
+	public void setNight(boolean night) {
+		Night = night;
+	}
+
+	public boolean Day() {
+		return Day;
+	}
+
+	public void setDay(boolean day) {
+		Day = day;
+	}
+
+	public boolean Ref() {
+		return Ref;
+	}
+
+	public void setRef(boolean ref) {
+		Ref = ref;
+	}
+	
+	public boolean NoSysc() {
+		return NoSysc;
+	}
+
+	public void setNoSysc(boolean noSysc) {
+		NoSysc = noSysc;
+	}
+
+}
+
+
+=====================================================================================================================================================
+
+package com.tcs.bancs.microservices.utils;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import org.springframework.stereotype.Component;
+
+
+import com.tcs.bancs.microservices.db.model.Crdd;
+import com.tcs.bancs.microservices.db.model.Ig01;
+import com.tcs.bancs.microservices.db.model.Telm;
+import com.tcs.bancs.microservices.repository.day.CrddDetailDayRepo;
+import com.tcs.bancs.microservices.repository.day.Ig01DetailDayRepo;
+import com.tcs.bancs.microservices.repository.day.TelmDetailDayRepo;
+import com.tcs.bancs.microservices.repository.ref.CrddDetailRefRepo;
+import com.tcs.bancs.microservices.repository.ref.TelmDetailRefRepo;
+
+@Component
+public class TellerChecker {
+
+	Logger logger = LoggerFactory.getLogger(TellerChecker.class);
+	
+	@Autowired
+	TelmDetailDayRepo telmDayRepo;
+	
+	@Autowired
+	TelmDetailRefRepo telmRefRepo;
+
+	@Autowired
+	Ig01DetailDayRepo ig01DeatilDayRepo;
+	
+	@Autowired
+	CrddDetailDayRepo crddDetailDayRepo;
+	
+	@Autowired
+	CrddDetailRefRepo crddDetailRefRepo;
+	
+	 boolean allowTeller;
+	 boolean ValidTeller;
+	 boolean tableValueIsEmpty;
+	
+	String formattedTeller = new String();
+
+	String formattedCardFileForCrdd =  new String();
+	String formattedTellerForCrdd=  new String();
+	String formatTellerRemoveZeros=  new String();
+	String ig01Date     = new String();
+	String sigonTelmDate = new String();
+	String teller_identifier = new String();
+	String stat = new String();
+	String sign_on_flag= new String();
+	List<Telm> telm = new ArrayList<Telm>();
+	
+	List<Ig01> signonDate = new ArrayList<Ig01>();
+	List<Crdd> crdd = new ArrayList<Crdd>();
+	
+	
+
+	
+	
+	
+	
+	public void checkTeller(String tellerno,AtomicReference<String> syscVar,String refno) {
+		
+		ArrayList<Object> queryParamsTlr = new ArrayList<>();
+		ArrayList<Object> queryParamsSignonDate = new ArrayList<>();
+		ArrayList<Object> queryParamsCrddTeller = new ArrayList<>();
+		
+		queryParamsTlr.add("003");
+		formattedTeller = StringUtils.leftPad(tellerno, 16, "0");
+		queryParamsTlr.add(formattedTeller);
+		queryParamsSignonDate.add("000");
+
+		// For CRDD Teller Check
+		String tempString = "BYPASS_TLM.card";
+		formattedCardFileForCrdd = String.format("%-30s", tempString);
+		formatTellerRemoveZeros = tellerno.replaceAll("^0+(?!$)", "");
+		formattedTellerForCrdd = String.format("%-299s", formatTellerRemoveZeros);
+
+		queryParamsCrddTeller.add(formattedCardFileForCrdd);
+		queryParamsCrddTeller.add(formattedTellerForCrdd);
+		
+	
+		
+		try {
+		if("Day".equals(syscVar.get()))
+		{
+		crdd = crddDetailDayRepo.findByCrddDetails(formattedCardFileForCrdd,formattedTellerForCrdd);
+		
+		}
+		else{
+			crdd = crddDetailRefRepo.findByCrddDetails(formattedCardFileForCrdd,formattedTellerForCrdd);	
+		}
+		signonDate = ig01DeatilDayRepo.findByIg01Details();
+		DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+		DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("ddMMyyyy");
+		LocalDate date = LocalDate.parse(signonDate.get(0).getCntldate(), inputFormatter);
+		String dateStringDDMMYYYY = date.format(outputFormatter);
+		ig01Date = dateStringDDMMYYYY;
+		
+		}
+		catch(Exception e)
+		{
+			
+			logger.info("Exception Occured at CRDD Check " + refno );
+			
+		}
+		
+		if (crdd != null && !crdd.isEmpty()) {
+
+			if (formatTellerRemoveZeros.equals(crdd.get(0).getVALUE().trim())) {
+
+				logger.info("VC------------------------Virtual Teller Based on CRDD Value Validated Sucessfully------------------------VC "+ refno);
+
+				allowTeller=true;
+				ValidTeller=true;
+				
+
+			}
+
+		}
+
+		else {
+
+			try {
+				if("Day".equals(syscVar.get()))
+				{
+					telm = telmDayRepo.findByTelmDetails("003", formattedTeller);
+					signonDate = ig01DeatilDayRepo.findByIg01Details();	
+					
+				}
+				else if("Ref".equals(syscVar.get())) {
+					telm = telmRefRepo.findByTelmDetails("003", formattedTeller);
+					signonDate = ig01DeatilDayRepo.findByIg01Details();	
+				}
+
+				DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+				LocalDate date = LocalDate.parse(signonDate.get(0).getCntldate(), inputFormatter);
+				DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("ddMMyyyy");
+				String ddmmyyyy = date.format(outputFormatter);
+				ig01Date = ddmmyyyy;
+			} catch (Exception e) {
+				logger.info("Exception Occured at TELM Check " + refno );
+				
+			
+			}
+
+			if (telm != null && !telm.isEmpty()) {
+				sign_on_flag = telm.get(0).getSIGNON_FLAG();
+				teller_identifier = telm.get(0).getTELLER_IDENTIFIER();
+				sigonTelmDate = telm.get(0).getSIGN_ON_DATE();
+				stat = telm.get(0).getSTAT();
+				if ("Y".equals(teller_identifier)) 
+				{
+					logger.info("VC------------------------Virtual Teller Based On Teller Identifier Validated Sucessfully------------------------VC "+ refno);
+					allowTeller=true;
+				}
+
+				else if ("Y".equals(sign_on_flag) && "01".equals(stat) && Objects.equals(sigonTelmDate, ig01Date)) {
+					logger.info("VC------------------------Teller Validated Sucessfully------------------------VC "+ refno);
+
+					allowTeller=true;
+				}
+
+				else {
+					allowTeller=false;
+				}
+			}
+
+			else {
+
+				ValidTeller=false;
+			}
+
+		}
+		
+		
+		
+	}
+
+//Setter and Getters
+
+	public boolean isAllowTeller() {
+		return allowTeller;
+	}
+
+
+	public void setAllowTeller(boolean allowTeller) {
+		this.allowTeller = allowTeller;
+	}
+
+
+
+	public boolean isValidTeller() {
+		return ValidTeller;
+	}
+
+
+
+	public void setValidTeller(boolean validTeller) {
+		ValidTeller = validTeller;
+	}
+
+
+
+
+	public boolean isTableValueIsEmpty() {
+		return tableValueIsEmpty;
+	}
+
+
+
+
+	public void setTableValueIsEmpty(boolean tableValueIsEmpty) {
+		this.tableValueIsEmpty = tableValueIsEmpty;
+	}
+
+
+	
+}
+=====================================================================================================================================
+
+
+package com.tcs.bancs.microservices.utils;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.apache.commons.lang.StringUtils;
+import com.tcs.bancs.microservices.db.model.Brhm;
+import com.tcs.bancs.microservices.repository.day.BrhmDetailDayRepo;
+import com.tcs.bancs.microservices.repository.ref.BrhmDetailRefRepo;
+
+@Component
+public class BranchChecker {
+	Logger logger = LoggerFactory.getLogger(BranchChecker.class);
+	
+	@Autowired
+	BrhmDetailDayRepo brhmDayRepo;
+	
+	@Autowired
+	BrhmDetailRefRepo brhmRefRepo;
+	
+	 boolean allowBranch;
+	 boolean tableValueIsEmpty;
+	String formattedBranch = new String();
+	List<Brhm> brhm = new ArrayList<Brhm>();
+	
+	public void checkBranch(String branchno,AtomicReference<String> syscVar,String refno) {
+		ArrayList<Object> queryParamsBrhm = new ArrayList<>();
+		
+		formattedBranch = "003" + StringUtils.leftPad(branchno, 16, "0");
+		queryParamsBrhm.add(formattedBranch);
+		
+		try {
+			if("Day".equals(syscVar.get()))
+			{
+			brhm = brhmDayRepo.findByBrhmDetails(formattedBranch);
+			}
+			else if("Ref".equals(syscVar.get())) {
+				brhm = brhmRefRepo.findByBrhmDetails(formattedBranch);
+			}
+		}
+		
+		catch(Exception e)
+		{
+			tableValueIsEmpty=true;
+		}
+		
+		
+		
+		if (brhm != null && !brhm.isEmpty()) {
+			allowBranch=true;
+			logger.info("VC-------------- Branch Validated Sucessfully --------------VC "+refno);
+			
+		} else {
+			allowBranch=false;
+		}
+	}
+
+	public boolean isAllowBranch() {
+		return allowBranch;
+	}
+
+	public void setAllowBranch(boolean allowBranch) {
+		this.allowBranch = allowBranch;
+	}
+
+	public boolean isTableValueIsEmpty() {
+		return tableValueIsEmpty;
+	}
+
+	public void setTableValueIsEmpty(boolean tableValueIsEmpty) {
+		this.tableValueIsEmpty = tableValueIsEmpty;
+	}
+
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+
