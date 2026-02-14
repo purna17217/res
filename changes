@@ -1,3 +1,96 @@
+ DbType dbType = syscRead.readSysc();
+			   
+			   
+			   switch (dbType) {
+
+			    case DAY:
+			        // Day DB
+					dataSource = dayDataSource;
+
+					  logger.info("-----------REGION MODE IS DAY IN DATABASE - MODE SET TO DAY DB----------"+ refno);
+			    	
+			        break;
+
+			    case NIGHT:
+			        // Night DB 
+			    	dataSource = nightDataSource;
+			
+							 
+			       logger.info("-----------REGION MODE IS NIGHT IN DATABASE - MODE SET TO NIGHT DB----------"+ refno); 
+			       
+			        break;
+
+			    case REF:
+			        // Ref DB 
+
+			    	dataSource = refDataSource;
+					 
+					 logger.info("-----------REGION MODE IS NIGHT IN DATABASE - MODE SET TO REF DB----------"+ refno); 
+					 
+			        break;
+			        
+			    case DEFAULT:
+			        // NO SYSC IN DEFAULT DAY DB 
+
+			    	dataSource = refDataSource;
+
+					 logger.info("-----------NO SYSC ENTRY IN DATABASE - MODE SET TO DAY DB BY DEFAULT---------- " + refno); 
+					 
+			        break;    
+			        
+			    case NONE:
+			    	//When NONE
+			    	logger.info("Exception Occured at SYSC Check " + refno );
+					errno = "3293";
+					errDesc = error.getProperty(errno);
+					finalResponse = errobj.getErrorResponse(errno, errDesc, refno);				
+					migDetails.saveToLogDB(Base64.getEncoder().encodeToString((reqbeanstr.toString()).getBytes()), remoteAddress, tellerno, refno, sourceId, entryDate, IPAddress, errno, errDesc, "1", Base64.getEncoder().encodeToString((finalResponse).getBytes()), "failure" );
+					return new ResponseEntity(finalResponse, HttpStatus.OK);
+					  
+					   
+			    default:
+			    	dataSource = dayDataSource;
+					
+					   logger.info("-----------DEFAULT SYSC ENTRY IN DATABASE---------- " + refno); 
+			        break;
+			}
+			
+			
+			
+			
+			public DbType readSysc() {
+		try {
+		List<Sysc> syscRes = new ArrayList<Sysc>();
+		syscRes = syscReponight.findBySyscDetail();
+		
+		if(syscRes==null || syscRes.isEmpty()) {
+			logger.info("Data Fetch from Day DB By Deafult - No SYSC Variable");
+			return DbType.DEFAULT;
+		}
+		
+		if ("D".equals(syscRes.get(0).getSyscVariable().substring(10, 11))) {
+			
+			logger.info("Data Fetch from Day DB");
+			return DbType.DAY;
+		} else if ("N".equals(syscRes.get(0).getSyscVariable().substring(10, 11))
+				&& "r".equals(syscRes.get(0).getSyscVariable().substring(74, 75))) {
+			logger.info("Data Fetch from Ref DB");
+			return DbType.REF;
+		} else if ("N".equals(syscRes.get(0).getSyscVariable().substring(10, 11))) {
+
+			logger.info("Data Fetch from Night DB");
+			return DbType.NIGHT;
+		}
+	}
+	
+	catch(Exception e)
+	{
+		logger.info("Exception at SYSC Variable");
+		return DbType.NONE;
+	}
+		return DbType.NONE;
+		
+	}
 
 
 package com.tcs.bancs.microservices.utils;
