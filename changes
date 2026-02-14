@@ -1,3 +1,25 @@
+DbType dbType = syscRead.readSysc();
+
+switch (dbType) {
+
+    case DAY:
+        // Day DB processing
+        break;
+
+    case NIGHT:
+        // Night DB processing
+        break;
+
+    case REF:
+        // Ref DB processing
+        break;
+
+    case NONE:
+    default:
+        // Default / fallback logic
+        break;
+}
+
 @Component
 public class SyscReader {
 	Logger LOGGER = LoggerFactory.getLogger(SyscReader.class);
