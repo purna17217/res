@@ -1,3 +1,13 @@
+
+			TellerResult tellerResult =	checkteller.checkTeller(tellerno, dbType, refno);	
+				if (tellerResult.)
+				{
+					if (checkteller.isAllowTeller())
+					{
+						if (checkBranch.isAllowBranch()) 
+						{	
+
+
 package com.tcs.bancs.microservices.utils;
 
 public class TellerResult {
