@@ -1,4 +1,67 @@
 
+
+package com.tcs.bancs.microservices.utils;
+
+import java.util.List;
+
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import com.tcs.bancs.microservices.db.model.Brhm;
+import com.tcs.bancs.microservices.repository.day.BrhmDetailDayRepo;
+import com.tcs.bancs.microservices.repository.ref.BrhmDetailRefRepo;
+
+@Component
+public class BranchChecker {
+
+    private static final Logger logger = LoggerFactory.getLogger(BranchChecker.class);
+
+    private final BrhmDetailDayRepo brhmDayRepo;
+    private final BrhmDetailRefRepo brhmRefRepo;
+
+    public BranchChecker(BrhmDetailDayRepo brhmDayRepo,
+                         BrhmDetailRefRepo brhmRefRepo) {
+        this.brhmDayRepo = brhmDayRepo;
+        this.brhmRefRepo = brhmRefRepo;
+    }
+
+    public boolean checkBranch(String branchNo, DbType dbType, String refNo) {
+
+        try {
+
+            String formattedBranch = "003" + StringUtils.leftPad(branchNo, 16, "0");
+
+            List<Brhm> brhm = (dbType == DbType.DAY)
+                    ? brhmDayRepo.findByBrhmDetails(formattedBranch)
+                    : brhmRefRepo.findByBrhmDetails(formattedBranch);
+
+            boolean allowed = brhm != null && !brhm.isEmpty();
+
+            if (allowed) {
+                logger.info("Branch validated successfully - RefNo {}", refNo);
+            }
+
+            return allowed;
+
+        } catch (Exception e) {
+            logger.error("Error while checking branch - RefNo {}", refNo, e);
+            return false;
+        }
+    }
+}
+
+boolean branchAllowed = checkBranch.checkBranch(branchno, dbType, refno);
+
+
+
+
+
+
+
+
+
 			TellerResult tellerResult =	checkteller.checkTeller(tellerno, dbType, refno);	
 				if (tellerResult.)
 				{
