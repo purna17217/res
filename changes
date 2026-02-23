@@ -1,4 +1,124 @@
- DbType dbType = syscRead.readSysc();
+@JsonIgnoreType
+@JsonInclude
+@JsonIgnoreProperties
+public class RequestBean {
+	@JsonProperty("REQUEST_REFERENCE_NUMBER")
+	private String REQUEST_REFERENCE_NUMBER;
+		
+	@JsonProperty("ACCOUNT_NUMBER")
+	private String ACCOUNT_NUMBER;
+	
+	@JsonProperty("STATUS")
+	private String STATUS;
+	
+
+	@JsonProperty("REQUEST_TELLER_ID")
+	private String REQUEST_TELLER_ID;
+	
+	@JsonProperty("BRANCH_CODE")
+	private String BRANCH_CODE;
+
+
+
+
+	public String getREQUEST_REFERENCE_NUMBER() {
+		return REQUEST_REFERENCE_NUMBER;
+	}
+
+
+
+	public void setREQUEST_REFERENCE_NUMBER(String reqNum) {
+		REQUEST_REFERENCE_NUMBER = reqNum;
+	}
+
+
+
+	public String getAccountNumber() {
+		return ACCOUNT_NUMBER;
+	}
+
+
+
+	public void setAccountNumber(String acctNo) {
+		ACCOUNT_NUMBER = acctNo;
+	}
+
+
+
+	public String getSTATUS() {
+		return STATUS;
+	}
+
+
+
+	public void setSTATUS(String Status) {
+		STATUS = Status;
+	}
+
+
+
+	public String getREQUEST_TELLER_ID() {
+		return REQUEST_TELLER_ID;
+	}
+
+
+
+	public void setREQUEST_TELLER_ID(String reqTellerId) {
+		REQUEST_TELLER_ID = reqTellerId;
+	}
+
+
+
+	public String getBRANCH_CODE() {
+		return BRANCH_CODE;
+	}
+
+
+
+	public void setBRANCH_CODE(String branchCode) {
+		BRANCH_CODE = branchCode;
+	}
+	
+	
+	
+	public boolean isEmpty() {
+		
+		if(REQUEST_REFERENCE_NUMBER == null && REQUEST_TELLER_ID == null && BRANCH_CODE == null && STATUS==null && ACCOUNT_NUMBER==null)
+		{
+			return true;
+		}
+		return false;
+	}
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DbType dbType = syscRead.readSysc();
 			   
 			   
 			   switch (dbType) {
